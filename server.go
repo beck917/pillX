@@ -35,8 +35,8 @@ func (sr *liveSwitchReader) Read(p []byte) (n int, err error) {
 type conn struct {
 	remote_addr string
 	server 		*Server
-	rc 			net.Conn
-	w 			io.Writer
+	remonte_conn 			net.Conn
+	io_writer			io.Writer
 	sr         	liveSwitchReader     // where the LimitReader reads from; usually the rwc
 	lr         	*io.LimitedReader    // io.LimitReader(sr)
 	buf 		*bufio.ReadWriter
@@ -44,19 +44,12 @@ type conn struct {
 	mu 			sync.Mutex
 }
 
-func (srv *Server) newConn(rc net.Conn) (c *conn, err error) {
-	c = new(conn);
-	c.remote_addr = rc.RemoteAddr().String()
-	c.server = srv
-	c.rc = rc
-	c.w = w
-	
-	c.sr = liveSwitchReader{r: c.rc}
-	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
-	br := newBufioReader(c.lr)
-	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
-	c.buf = bufio.NewReadWriter(br, bw)
-	return c, nil
+// Serve a new connection.
+func (c *conn) serve() {
+	origConn := c.rwc // copy it before it's set nil on Close or Hijack
+	for {
+		w, err := c.readRequest()
+	}
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
@@ -75,6 +68,21 @@ type Server struct {
 	// If nil, logging goes to os.Stderr via the log package's
 	// standard logger.
 	ErrorLog *log.Logger
+}
+
+func (srv *Server) newConn(rc net.Conn) (c *conn, err error) {
+	c = new(conn);
+	c.remote_addr = rc.RemoteAddr().String()
+	c.server = srv
+	c.remonte_conn = rc
+	c.io_writer = rc
+	
+	c.sr = liveSwitchReader{r: c.rc}
+	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
+	br := newBufioReader(c.lr)
+	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+	c.buf = bufio.NewReadWriter(br, bw)
+	return c, nil
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
@@ -122,7 +130,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		if err != nil {
 			continue
 		}
-		c.setState(c.rc, StateNew) // before Serve can return
+		//c.setState(c.rc, StateNew) // before Serve can return
 		go c.serve()
 	}
 }
@@ -133,4 +141,19 @@ func (s *Server) logf(format string, args ...interface{}) {
 	} else {
 		log.Printf(format, args...)
 	}
+}
+
+// checkConnErrorWriter writes to c.rwc and records any write errors to c.werr.
+// It only contains one field (and a pointer field at that), so it
+// fits in an interface value without an extra allocation.
+type checkConnErrorWriter struct {
+	c *conn
+}
+
+func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
+	n, err = w.c.w.Write(p) // c.w == c.rwc, except after a hijack, when rwc is nil.
+	if err != nil && w.c.werr == nil {
+		w.c.werr = err
+	}
+	return
 }
