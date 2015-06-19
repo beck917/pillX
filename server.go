@@ -44,6 +44,10 @@ type conn struct {
 	mu 			sync.Mutex
 }
 
+func (c *conn) readRequest() (response *response, err error) {
+	
+}
+
 // Serve a new connection.
 func (c *conn) serve() {
 	origConn := c.rwc // copy it before it's set nil on Close or Hijack
