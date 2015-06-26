@@ -6,8 +6,16 @@ import (
 	"../../pillX"
 )
 
+func helloHandler(rw pillx.ResponseWriter, req *pillx.Request) {
+    io.WriteString(rw, "hello world")
+}
+
+
 func main() {
-	test1 := pillx.ReturnStr()
-	fmt.Printf("ReturnStr from package1: %s\n", test1)
-	fmt.Println("Hello World!")
+	server := &pillx.Server{
+		Addr:           ":8080",
+		Handler:        nil,
+	}
+	pillx.HandleFunc(0x0DDC, helloHandler)
+	server.ListenAndServe()
 }

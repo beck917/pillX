@@ -17,6 +17,21 @@ import (
 	"time"
 )
 
+// serverHandler delegates to either the server's Handler or
+// DefaultServeMux and also handles "OPTIONS *" requests.
+type ServerHandler struct {
+	server *Server
+}
+
+func (sh ServerHandler) serve(rw ResponseWriter, req *Request) {
+	handler := sh.server.Handler
+	if handler == nil {
+		handler = defaultServeRouter
+	}
+
+	handler.serve(rw, req)
+}
+
 // A liveSwitchReader can have its Reader changed at runtime. It's
 // safe for concurrent reads and switches, if its mutex is held.
 type liveSwitchReader struct {
@@ -31,31 +46,6 @@ func (sr *liveSwitchReader) Read(p []byte) (n int, err error) {
 	return r.Read(p)
 }
 
-// A conn represents the server side of connection.
-type conn struct {
-	remote_addr string
-	server 		*Server
-	remonte_conn 			net.Conn
-	io_writer			io.Writer
-	sr         	liveSwitchReader     // where the LimitReader reads from; usually the rwc
-	lr         	*io.LimitedReader    // io.LimitReader(sr)
-	buf 		*bufio.ReadWriter
-	
-	mu 			sync.Mutex
-}
-
-func (c *conn) readRequest() (response *response, err error) {
-	
-}
-
-// Serve a new connection.
-func (c *conn) serve() {
-	origConn := c.rwc // copy it before it's set nil on Close or Hijack
-	for {
-		w, err := c.readRequest()
-	}
-}
-
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
 // connections. It's used by ListenAndServe and ListenAndServeTLS so
 // dead TCP connections (e.g. closing laptop mid-download) eventually
@@ -66,6 +56,7 @@ type tcpKeepAliveListener struct {
 
 type Server struct {
 	addr			string        // TCP address to listen on, ":http" if empty
+	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
 	
 	// ErrorLog specifies an optional logger for errors accepting
 	// connections and unexpected behavior from handlers.
