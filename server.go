@@ -3,37 +3,65 @@ package pillx
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net"
-	"os"
-	"path"
-	"strconv"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// serverHandler delegates to either the server's Handler or
-// DefaultServeMux and also handles "OPTIONS *" requests.
+// 用来获得当前的router并回调相应的处理方法
 type ServerHandler struct {
 	server *Server
 }
 
-func (sh ServerHandler) serve(rw ResponseWriter, req *Request) {
+func (sh ServerHandler) serve(res *Response, req *Request) {
 	handler := sh.server.Handler
 	if handler == nil {
 		handler = defaultServeRouter
 	}
 
-	handler.serve(rw, req)
+	handler.serve(res, req)
 }
 
-// A liveSwitchReader can have its Reader changed at runtime. It's
-// safe for concurrent reads and switches, if its mutex is held.
+var (
+	bufioReaderPool   sync.Pool
+	bufioWriter2kPool sync.Pool
+	bufioWriter4kPool sync.Pool
+)
+
+func bufioWriterPool(size int) *sync.Pool {
+	switch size {
+	case 2 << 10:
+		return &bufioWriter2kPool
+	case 4 << 10:
+		return &bufioWriter4kPool
+	}
+	return nil
+}
+
+func newBufioReader(r io.Reader) *bufio.Reader {
+	if v := bufioReaderPool.Get(); v != nil {
+		br := v.(*bufio.Reader)
+		br.Reset(r)
+		return br
+	}
+	return bufio.NewReader(r)
+}
+
+func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
+	pool := bufioWriterPool(size)
+	if pool != nil {
+		if v := pool.Get(); v != nil {
+			bw := v.(*bufio.Writer)
+			bw.Reset(w)
+			return bw
+		}
+	}
+	return bufio.NewWriterSize(w, size)
+}
+
+// 继承自mutex锁,可以安全的读取数据
 type liveSwitchReader struct {
 	sync.Mutex
 	r io.Reader
@@ -54,9 +82,23 @@ type tcpKeepAliveListener struct {
 	*net.TCPListener
 }
 
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
+}
+
+
+// noLimit is an effective infinite upper bound for io.LimitedReader
+const noLimit int64 = (1 << 63) - 1
+
 type Server struct {
-	addr			string        // TCP address to listen on, ":http" if empty
-	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
+	Addr		string        // TCP address to listen on, ":http" if empty
+	Handler     Handler       // handler to invoke, http.DefaultServeMux if nil
 	
 	// ErrorLog specifies an optional logger for errors accepting
 	// connections and unexpected behavior from handlers.
@@ -65,14 +107,14 @@ type Server struct {
 	ErrorLog *log.Logger
 }
 
-func (srv *Server) newConn(rc net.Conn) (c *conn, err error) {
-	c = new(conn);
+func (srv *Server) newConn(rc net.Conn) (c *Conn, err error) {
+	c = new(Conn);
 	c.remote_addr = rc.RemoteAddr().String()
 	c.server = srv
 	c.remonte_conn = rc
 	c.io_writer = rc
 	
-	c.sr = liveSwitchReader{r: c.rc}
+	c.sr = liveSwitchReader{r: c.remonte_conn}
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
 	br := newBufioReader(c.lr)
 	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
@@ -84,7 +126,7 @@ func (srv *Server) newConn(rc net.Conn) (c *conn, err error) {
 // calls Serve to handle requests on incoming connections.  If
 // srv.Addr is blank, ":5917" is used.
 func (srv *Server) ListenAndServe() error {
-	addr := srv.addr
+	addr := srv.Addr
 	if addr == "" {
 		addr = ":5917"
 	}
@@ -142,13 +184,13 @@ func (s *Server) logf(format string, args ...interface{}) {
 // It only contains one field (and a pointer field at that), so it
 // fits in an interface value without an extra allocation.
 type checkConnErrorWriter struct {
-	c *conn
+	c *Conn
 }
 
 func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
-	n, err = w.c.w.Write(p) // c.w == c.rwc, except after a hijack, when rwc is nil.
-	if err != nil && w.c.werr == nil {
-		w.c.werr = err
+	n, err = w.c.io_writer.Write(p) // c.w == c.rwc, except after a hijack, when rwc is nil.
+	if err != nil && w.c.io_writer_err == nil {
+		w.c.io_writer_err = err
 	}
 	return
 }
