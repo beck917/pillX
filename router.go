@@ -4,17 +4,15 @@ import (
 	"sync"
 )
 
+//handler接口,ServeRouter类实现了此serve方法
 type Handler interface {
 	serve(*Response, *Request)
 }
 
-// The HandlerFunc type is an adapter to allow the use of
-// ordinary functions as HTTP handlers.  If f is a function
-// with the appropriate signature, HandlerFunc(f) is a
-// Handler object that calls f.
+// 这里将HandlerFunc定义为一个函数类型，因此以后当调用a = HandlerFunc(f)之后, 调用a的serve实际上就是调用f的对应方法, 拥有相同参数和相同返回值的函数属于同一种类型。
 type HandlerFunc func(*Response, *Request)
 
-// ServeHTTP calls f(w, r).
+// Serve calls f(w, r).
 func (f HandlerFunc) serve(w *Response, r *Request) {
 	f(w, r)
 }
@@ -24,8 +22,7 @@ type ServeRouter struct {
 	opcode_list     map[uint16]OpcodeHandler
 }
 
-// Handle registers the handler for the given pattern.
-// If a handler already exists for pattern, Handle panics.
+//将router对应的opcode,方法存储
 func (router *ServeRouter) Handle(name uint16, handler Handler) {
 	router.mu.Lock()
 	defer router.mu.Unlock()
@@ -33,13 +30,12 @@ func (router *ServeRouter) Handle(name uint16, handler Handler) {
 	router.opcode_list[name] = OpcodeHandler{handler: handler, name: name}
 }
 
-// HandleFunc registers the handler function for the given pattern.
+// HandleFunc registers the handler function for the given opcode.
 func (rounter *ServeRouter) handleFunc(name uint16, handler func(*Response, *Request)) {
 	rounter.Handle(name, HandlerFunc(handler))
 }
 
-// Serve dispatches the request to the handler whose
-// pattern most closely matches the request URL.
+// 取出opcode对应的操作方法,然后回调
 func (router *ServeRouter) serve(w *Response, r *Request) {
 	router.mu.RLock()
 	defer router.mu.RUnlock()
@@ -54,15 +50,14 @@ type OpcodeHandler struct {
 	handler     Handler
 }
 
-// NewServeMux allocates and returns a new ServeMux.
+// NewServeRouter allocates and returns a new ServeRouter.
 func NewServeRouter() *ServeRouter { return &ServeRouter{opcode_list: make(map[uint16]OpcodeHandler)} }
 
-// defaultServeRouter is the default ServeMux used by Serve.
+// defaultServeRouter is the default ServeRouter used by Serve.
 var defaultServeRouter = NewServeRouter()
 
-// HandleFunc registers the handler function for the given pattern
-// in the DefaultServeMux.
-// The documentation for ServeMux explains how patterns are matched.
+// HandleFunc registers the handler function for the given opcode
+// in the defaultServeRouter.
 func HandleFunc(name uint16, handler func(*Response, *Request)) {
 	defaultServeRouter.handleFunc(name, handler)
 }

@@ -8,22 +8,19 @@ import (
 )
 
 type Request struct {
-	name uint16
+	mark		uint8
+	size		uint16
+	cmd 		uint16
+	content		[]byte
 }
 
-// A response represents the server side of an HTTP response.
+// A response represents the server side of aresponse.
 type Response struct {
 	conn          *Conn
 	req           *Request // request for this response
 
 	written       int64 // number of bytes written in body
 	contentLength int64 // explicitly-declared Content-Length; or -1
-
-	// close connection after this reply.  set on request and
-	// updated after response from handler if there's a
-	// "Connection: keep-alive" response header and a
-	// Content-Length.
-	closeAfterReply bool
 }
 
 func (response *Response) Write(data []byte) (n int, err error) {
@@ -38,7 +35,7 @@ func (response *Response) write(lenData int, dataB []byte, dataS string) (n int,
 	}
 
 	if err != nil {
-		//cw.res.conn.rwc.Close()
+		response.conn.remonte_conn.Close()
 	}
 	return
 }
@@ -49,7 +46,7 @@ type Conn struct {
 	server 				*Server
 	remonte_conn 		net.Conn
 	io_writer			io.Writer
-	io_writer_err       			error                // any errors writing to w
+	io_writer_err       error                // any errors writing to w
 	sr         			liveSwitchReader     // where the LimitReader reads from; usually the rwc
 	lr         			*io.LimitedReader    // io.LimitReader(sr)
 	buf 				*bufio.ReadWriter
@@ -60,8 +57,14 @@ type Conn struct {
 func (c *Conn) readRequest() (response *Response, err error) {
 	var req *Request
 	req = new(Request)//c.buf.Reader
-	//req.name = c.buf.Read();
-	req.name = 0x0DDC;
+	req.mark = c.buf.ReadByte()
+	if (req.mark != 0xa8) {
+		
+	}
+	//req.name = c.buf.Read()
+	req.name = 0x0DDC
+	req.conn = c
+	req.Buf = c.buf
 	
 	response = &Response{
 		conn:          c,

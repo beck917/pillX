@@ -16,12 +16,12 @@ type ServerHandler struct {
 }
 
 func (sh ServerHandler) serve(res *Response, req *Request) {
-	handler := sh.server.Handler
-	if handler == nil {
-		handler = defaultServeRouter
+	router := sh.server.Handler
+	if router == nil {
+		router = defaultServeRouter
 	}
 
-	handler.serve(res, req)
+	router.serve(res, req)
 }
 
 var (
