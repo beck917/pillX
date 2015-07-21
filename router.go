@@ -41,7 +41,7 @@ func (router *ServeRouter) serve(w *Response, r *Request) {
 	defer router.mu.RUnlock()
 	
 	var handler Handler
-	handler = router.opcode_list[r.name].handler
+	handler = router.opcode_list[r.Header.cmd].handler
 	handler.serve(w, r)
 }
 

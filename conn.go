@@ -5,14 +5,11 @@ import (
 	"io"
 	"net"
 	"sync"
+	"errors"
+	"fmt"
+	"encoding/binary"
+	"bytes"
 )
-
-type Request struct {
-	mark		uint8
-	size		uint16
-	cmd 		uint16
-	content		[]byte
-}
 
 // A response represents the server side of aresponse.
 type Response struct {
@@ -36,8 +33,22 @@ func (response *Response) write(lenData int, dataB []byte, dataS string) (n int,
 
 	if err != nil {
 		response.conn.remonte_conn.Close()
+	} else {
+		response.conn.buf.Flush()
 	}
 	return
+}
+
+type RequestHeader struct {
+	mark		uint8
+	cmd 		uint16
+	error		uint16
+	size		uint16
+}
+
+type Request struct {
+	Header		*RequestHeader
+	Content		[]byte
 }
 
 // A conn represents the server side of connection.
@@ -54,23 +65,74 @@ type Conn struct {
 	mu 			sync.Mutex
 }
 
+func (c *Conn) errorResponse(response *Response, errorNum uint16) (err error) {
+	//返回error
+	errorMsg := &RequestHeader{
+		mark:	0xA8,
+		size:	0,
+		cmd:	0x0001,
+		error:	errorNum,
+	}
+	errorBuf := new(bytes.Buffer)
+	errBin := binary.Write(errorBuf, binary.BigEndian, errorMsg)
+	if (errBin != nil) {
+		fmt.Println("binary.Write failed:", errBin)
+		return errBin
+	}
+	fmt.Printf("%x", errorBuf.Bytes())
+	response.Write(errorBuf.Bytes())
+	return nil
+}
+
 func (c *Conn) readRequest() (response *Response, err error) {
 	var req *Request
-	req = new(Request)//c.buf.Reader
-	req.mark = c.buf.ReadByte()
-	if (req.mark != 0xa8) {
-		
-	}
-	//req.name = c.buf.Read()
-	req.name = 0x0DDC
-	req.conn = c
-	req.Buf = c.buf
+	req = new(Request)
+	reqHeader := new(RequestHeader)
 	
 	response = &Response{
 		conn:          c,
 		req:           req,
 		contentLength: -1,
 	}
+
+	//初始字节判断
+	reqHeader.mark, _ = c.buf.ReadByte()
+	if (reqHeader.mark != 0xa8) {
+		c.buf.Reader.Reset(c.lr)
+		//返回error
+		c.errorResponse(response, 0x0001)
+		return nil, errors.New("request mark error")
+	}
+	//取出cmd,size,error,全都是uint16,两个字节
+	cmdB1, _ := c.buf.ReadByte()
+	cmdB2, _ := c.buf.ReadByte()
+	reqHeader.cmd = uint16(cmdB1 << 8 | cmdB2)
+	
+	errorB1, _ := c.buf.ReadByte()
+	errorB2, _ := c.buf.ReadByte()
+	reqHeader.error = uint16(errorB1 << 8 | errorB2)
+	
+	sizeB1, _ := c.buf.ReadByte()
+	sizeB2, _ := c.buf.ReadByte()
+	reqHeader.size = uint16(sizeB1 << 8 | sizeB2)
+	
+	/*
+	reqBuf := c.buf.Read(make([]byte, 7))
+	Request(reqBuf).size
+	*/
+	//判断size大小是否正确
+	remain := c.buf.Reader.Buffered()
+	if (remain < int(reqHeader.size)) {
+		c.buf.Reader.Reset(c.lr)
+		c.errorResponse(response, 0x0002)
+		return nil, errors.New("request size error")
+	}
+	
+	//读取剩余数据
+	req.Header = reqHeader
+	req.Content = make([]byte, reqHeader.size)
+	c.buf.Read(req.Content)
+	
 	return response, nil
 }
 

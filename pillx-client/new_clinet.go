@@ -10,7 +10,7 @@ import (
  
 func sender(conn net.Conn) {
     for i := 0; i < 100; i++ {
-        words := "{\"Id\":1,\"Name\":\"golang\",\"Message\":\"message\"}"
+        words := "a8"
         conn.Write([]byte(words))
     }
 }
@@ -35,9 +35,9 @@ func main() {
 	
 	go func() {
 		for {
-			b := make([]byte, 10)
-			s, _ := conn.Read(b)
-			fmt.Print(s)
+			b := make([]byte, 7)
+			conn.Read(b)
+			fmt.Printf("%x", b)
 		}
 	}()
  
