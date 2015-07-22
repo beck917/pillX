@@ -8,8 +8,8 @@ import (
 )
 
 func helloHandler(rw *pillx.Response, req *pillx.Request) {
-	fmt.Print(req.Content)
-    io.WriteString(rw, "hello world")
+	fmt.Print(string(req.Content))
+    io.WriteString(rw, "world")
 }
 
 

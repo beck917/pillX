@@ -6,12 +6,43 @@ import (
     "net"
     "os"
     "time"
+	"encoding/binary"
+	"bytes"
 )
+
+type RequestHeader struct {
+	mark		uint8
+	cmd 		uint16
+	error		uint16
+	size		uint16
+}
+
+type Request struct {
+	Header		*RequestHeader
+	Content		[]byte
+}
+
  
 func sender(conn net.Conn) {
     for i := 0; i < 100; i++ {
-        words := "a8"
-        conn.Write([]byte(words))
+		reqHeader := &RequestHeader{
+			mark:	0xA8,
+			size:	5,
+			cmd:	0x0DDC,
+			error:	0,
+		}
+
+		buf := new(bytes.Buffer)
+		binary.Write(buf, binary.BigEndian, reqHeader)
+		errBin := binary.Write(buf, binary.BigEndian, []byte("Hello"))
+		
+		if (errBin != nil) {
+			fmt.Println("binary.Write failed:", errBin)
+			return
+		}
+		fmt.Printf("%x", buf.Bytes())
+		
+        conn.Write(buf.Bytes())
     }
 }
  
@@ -35,9 +66,9 @@ func main() {
 	
 	go func() {
 		for {
-			b := make([]byte, 7)
+			b := make([]byte, 5)
 			conn.Read(b)
-			fmt.Printf("%x", b)
+			fmt.Printf("%s", b)
 		}
 	}()
  

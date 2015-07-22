@@ -94,7 +94,7 @@ func (c *Conn) readRequest() (response *Response, err error) {
 		req:           req,
 		contentLength: -1,
 	}
-
+	
 	//初始字节判断
 	reqHeader.mark, _ = c.buf.ReadByte()
 	if (reqHeader.mark != 0xa8) {
@@ -106,15 +106,15 @@ func (c *Conn) readRequest() (response *Response, err error) {
 	//取出cmd,size,error,全都是uint16,两个字节
 	cmdB1, _ := c.buf.ReadByte()
 	cmdB2, _ := c.buf.ReadByte()
-	reqHeader.cmd = uint16(cmdB1 << 8 | cmdB2)
+	reqHeader.cmd = uint16(cmdB1) << 8 | uint16(cmdB2)
 	
 	errorB1, _ := c.buf.ReadByte()
 	errorB2, _ := c.buf.ReadByte()
-	reqHeader.error = uint16(errorB1 << 8 | errorB2)
+	reqHeader.error = uint16(errorB1) << 8 | uint16(errorB2)
 	
 	sizeB1, _ := c.buf.ReadByte()
 	sizeB2, _ := c.buf.ReadByte()
-	reqHeader.size = uint16(sizeB1 << 8 | sizeB2)
+	reqHeader.size = uint16(sizeB1) << 8 | uint16(sizeB2)
 	
 	/*
 	reqBuf := c.buf.Read(make([]byte, 7))
@@ -147,6 +147,5 @@ func (c *Conn) serve() {
 		}
 		
 		ServerHandler{c.server}.serve(w, w.req)
-		break
 	}
 }
