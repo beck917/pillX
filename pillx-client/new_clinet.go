@@ -2,6 +2,7 @@
 package main
  
 import (
+	"runtime"
     "fmt"
     "net"
     "os"
@@ -25,12 +26,12 @@ type Request struct {
 
  
 func sender(conn net.Conn) {
-    for i := 0; i < 1000; i++ {
+    for i := 0; i < 10000; i++ {
 		reqHeader := &RequestHeader{
 			mark:	0xA8,
 			size:	5,
 			cmd:	0x0DDC,
-			error:	0,
+			error:	0x0000,
 		}
 
 		buf := new(bytes.Buffer)
@@ -59,11 +60,12 @@ func (c *Counter) Inc(){
 }
  
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
     server := "127.0.0.1:8080"
 	start := time.Now()
 	fmt.Print(start)
 	c := Counter{}
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 	    tcpAddr, err := net.ResolveTCPAddr("tcp4", server)
 	    if err != nil {
 	        fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
@@ -88,7 +90,7 @@ func main() {
 				c.mu.Lock()
 				c.x++
 				//fmt.Print(t)
-				if c.x >= 990000 {
+				if c.x >= 1000000 {
 				end := time.Now()
 				fmt.Print(end)
 				}

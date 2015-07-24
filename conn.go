@@ -79,7 +79,7 @@ func (c *Conn) errorResponse(response *Response, errorNum uint16) (err error) {
 		fmt.Println("binary.Write failed:", errBin)
 		return errBin
 	}
-	fmt.Printf("%x", errorBuf.Bytes())
+	fmt.Printf("%x\n", errorBuf.Bytes())
 	response.Write(errorBuf.Bytes())
 	return nil
 }
@@ -96,7 +96,12 @@ func (c *Conn) readRequest() (response *Response, err error) {
 	}
 	
 	//初始字节判断
-	reqHeader.mark, _ = c.buf.ReadByte()
+	var mark_err error
+	reqHeader.mark, mark_err = c.buf.ReadByte()
+	if (mark_err != nil) {
+		response.conn.remonte_conn.Close()
+		return nil, mark_err
+	}
 	if (reqHeader.mark != 0xa8) {
 		c.buf.Reader.Reset(c.lr)
 		//返回error
@@ -123,6 +128,12 @@ func (c *Conn) readRequest() (response *Response, err error) {
 	//判断size大小是否正确
 	remain := c.buf.Reader.Buffered()
 	if (remain < int(reqHeader.size)) {
+		fmt.Printf("%x\n", remain)
+		fmt.Printf("%x\n", reqHeader.size)
+		//req.Content = make([]byte, reqHeader.size)
+		tmp1, _ := c.buf.ReadString('o')
+		fmt.Print(tmp1)
+
 		c.buf.Reader.Reset(c.lr)
 		c.errorResponse(response, 0x0002)
 		return nil, errors.New("request size error")
