@@ -9,7 +9,7 @@ import (
 
 func helloHandler(rw *pillx.Response, req *pillx.Request) {
 	//fmt.Print(string(req.Content))
-    io.WriteString(rw, "hello")
+    io.WriteString(rw, "World")
 }
 
 

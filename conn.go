@@ -125,25 +125,20 @@ func (c *Conn) readRequest() (response *Response, err error) {
 	reqBuf := c.buf.Read(make([]byte, 7))
 	Request(reqBuf).size
 	*/
-	//判断size大小是否正确
-	remain := c.buf.Reader.Buffered()
-	if (remain < int(reqHeader.size)) {
-		fmt.Printf("%x\n", remain)
-		fmt.Printf("%x\n", reqHeader.size)
-		//req.Content = make([]byte, reqHeader.size)
-		tmp1, _ := c.buf.ReadString('o')
-		fmt.Print(tmp1)
-
-		c.buf.Reader.Reset(c.lr)
-		c.errorResponse(response, 0x0002)
-		return nil, errors.New("request size error")
-	}
-	
-	//读取剩余数据
-	req.Header = reqHeader
+	//根据size取出数据
+	readNum := 0
 	req.Content = make([]byte, reqHeader.size)
-	c.buf.Read(req.Content)
-	
+	for readNum < int(reqHeader.size) {
+		readOnceNum,contentError := c.buf.Read(req.Content[readNum:])
+		if contentError != nil {
+			c.buf.Reader.Reset(c.lr)
+			c.errorResponse(response, 0x0002)
+			return nil, errors.New("request size error")
+		}
+		readNum += readOnceNum
+	}
+
+	req.Header = reqHeader
 	return response, nil
 }
 
