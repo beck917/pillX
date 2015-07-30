@@ -26,7 +26,7 @@ type Request struct {
 
  
 func sender(conn net.Conn) {
-    for i := 0; i < 10000; i++ {
+    for i := 0; i < 1; i++ {
 		reqHeader := &RequestHeader{
 			mark:	0xA8,
 			size:	5,
@@ -65,7 +65,7 @@ func main() {
 	start := time.Now()
 	fmt.Print(start)
 	c := Counter{}
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1; i++ {
 	    tcpAddr, err := net.ResolveTCPAddr("tcp4", server)
 	    if err != nil {
 	        fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
@@ -84,9 +84,9 @@ func main() {
 		
 		go func() {
 			for {
-				b := make([]byte, 5)
+				b := make([]byte, 12)
 				conn.Read(b)
-				//fmt.Printf("%s", b)
+				fmt.Printf("%x", b)
 				c.mu.Lock()
 				c.x++
 				//fmt.Print(t)

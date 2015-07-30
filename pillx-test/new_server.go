@@ -7,11 +7,14 @@ import (
 	"fmt"
 )
 
-func helloHandler(rw *pillx.Response, req *pillx.Request) {
+func helloHandler(client *pillx.Response, req *pillx.Request) {
 	//fmt.Print(string(req.Content))
-    io.WriteString(rw, "World")
+    io.WriteString(client, "World")
+	
+	channel := pillx.NewChannel("all")
+	channel.Subscribe(client)
+	channel.Publish(req)
 }
-
 
 func main() {
 	server := &pillx.Server{

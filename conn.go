@@ -15,6 +15,7 @@ import (
 type Response struct {
 	conn          *Conn
 	req           *Request // request for this response
+	Id			  int
 
 	written       int64 // number of bytes written in body
 	contentLength int64 // explicitly-declared Content-Length; or -1
@@ -37,6 +38,18 @@ func (response *Response) write(lenData int, dataB []byte, dataS string) (n int,
 		response.conn.buf.Flush()
 	}
 	return
+}
+
+func (response *Response) SendContent(content []byte) {
+	
+}
+
+func (response *Response) Send(message *Request) {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, message.Header)
+	binary.Write(buf, binary.BigEndian, message.Content)
+	
+	response.Write(buf.Bytes())
 }
 
 type RequestHeader struct {
