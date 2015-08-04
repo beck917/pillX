@@ -3,7 +3,7 @@ package main
 
 import (
 	"io"
-	"../../pillX"
+	"pillx"
 	"fmt"
 )
 
