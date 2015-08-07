@@ -1,7 +1,6 @@
 package pillx
 
 import (
-	"bufio"
 	"errors"
 	"encoding/binary"
 	"bytes"
@@ -18,6 +17,10 @@ type RequestHeader struct {
 type Request struct {
 	Header		*RequestHeader
 	Content		[]byte
+}
+
+func (req *Request) New() (protocol IProtocol) {
+	return new(Request)
 }
 
 func (req *Request) errorMsg(err_type uint8, err_num uint16, err_prama error) (err error) {
@@ -42,7 +45,8 @@ func (req *Request) errorMsg(err_type uint8, err_num uint16, err_prama error) (e
 	}
 }
 
-func (req *Request) Analyze(buf *bufio.ReadWriter) (err error) {
+func (req *Request) Analyze(client *Response) (err error) {
+	buf := client.conn.buf
 	reqHeader := new(RequestHeader)
 	
 	//初始字节判断
@@ -86,7 +90,6 @@ func (req *Request) Analyze(buf *bufio.ReadWriter) (err error) {
 		}
 		readNum += readOnceNum
 	}
-
 	req.Header = reqHeader
 	return nil
 }

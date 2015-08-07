@@ -22,7 +22,7 @@ func main() {
 	server := &pillx.Server{
 		Addr:          ":8080",
 		Handler:        nil,
-		Protocol:		&pillx.Request{},
+		Protocol:		new(pillx.Request),
 	}
 	server.HandleFunc(0x0DDC, helloHandler)
 	fmt.Println("pillX服务端引擎启动")

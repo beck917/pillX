@@ -9,10 +9,11 @@ import (
 )
 
 type IProtocol interface {
-	Analyze(buf *bufio.ReadWriter) (err error)
+	Analyze(client *Response) (err error)
 	Encode(msg interface{}) (buf []byte, err error)
 	Decode(buf []byte) (err error)
 	GetCmd() (cmd uint16)
+	New() (protocol IProtocol)
 }
 
 const Protocal_Error_TYPE_COMMON uint8 = 1
@@ -30,9 +31,10 @@ func (e *ProtocalError) Error() string{
 
 // A response represents the server side of aresponse.
 type Response struct {
-	conn          *Conn
-	protocol      IProtocol // request for this response
-	channels	  map[string]*Channel
+	conn          	*Conn
+	protocol      	IProtocol // request for this response
+	channels	  	map[string]*Channel
+	handshake_flg	bool //是否已经通过握手验证
 }
 
 //取消所有订阅频道
@@ -87,7 +89,8 @@ type Conn struct {
 }
 
 func (c *Conn) readRequest() (response *Response, err error) {
-	protocol := c.server.Protocol
+	//为此连接创建一个新的协议类对象
+	protocol := c.server.Protocol.New()
 	
 	response = &Response{
 		conn:          c,
@@ -95,7 +98,7 @@ func (c *Conn) readRequest() (response *Response, err error) {
 		channels: 	   make(map[string]*Channel),
 	}
 	
-	err = protocol.Analyze(c.buf)
+	err = protocol.Analyze(response)
 	if err != nil {
 		switch err.(type) {
 			case *ProtocalError: 
@@ -108,7 +111,7 @@ func (c *Conn) readRequest() (response *Response, err error) {
 						response.conn.remonte_conn.Close()
 						
 						//发送onclose通知
-						ServerHandler{c.server}.serve(response, protocol)
+						//ServerHandler{c.server}.serve(response, protocol)
 						return nil, err
 						break
 					case Protocal_Error_TYPE_COMMON:

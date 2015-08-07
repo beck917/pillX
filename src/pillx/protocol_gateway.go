@@ -1,7 +1,6 @@
 package pillx
 
 import (
-	"bufio"
 	//"errors"
 	"bytes"
 	//"fmt"
@@ -13,7 +12,11 @@ type GateWayProtocol struct {
 	cmd				uint16
 }
 
-func (gateway *GateWayProtocol) Analyze(buf *bufio.ReadWriter) (err error) {
+func (gateway *GateWayProtocol) New() (protocol IProtocol) {
+	return new(GateWayProtocol)
+}
+
+func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 	if (gateway.handshake_flg != true) {
 		gateway.handshake_flg = true
 		//派发
