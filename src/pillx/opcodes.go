@@ -1,0 +1,7 @@
+package pillx
+
+const SYS_CONNECT_MARK_ERROR 	uint16 = 0X0001
+const SYS_CONNECT_SIZE_ERROR 	uint16 = 0X0002
+const SYS_ON_CONNECT			uint16 = 0X0010
+const SYS_ON_MESSAGE			uint16 = 0X0011
+const SYS_ON_CLOSE				uint16 = 0X0012

@@ -2,14 +2,16 @@
 package main
 
 import (
-	"io"
+	//"io"
 	"pillx"
 	"fmt"
 )
 
-func helloHandler(client *pillx.Response, req *pillx.Request) {
+func helloHandler(client *pillx.Response, req pillx.IProtocol) {
 	//fmt.Print(string(req.Content))
-    io.WriteString(client, "World")
+    //
+	client.Send(req)
+	//io.WriteString(client, "World")
 	
 	channel := pillx.NewChannel("all")
 	channel.Subscribe(client)
@@ -20,8 +22,9 @@ func main() {
 	server := &pillx.Server{
 		Addr:          ":8080",
 		Handler:        nil,
+		Protocol:		&pillx.Request{},
 	}
-	pillx.HandleFunc(0x0DDC, helloHandler)
+	server.HandleFunc(0x0DDC, helloHandler)
 	fmt.Println("pillX服务端引擎启动")
 	server.ListenAndServe()
 }

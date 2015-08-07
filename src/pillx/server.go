@@ -15,12 +15,8 @@ type ServerHandler struct {
 	server *Server
 }
 
-func (sh ServerHandler) serve(res *Response, req *Request) {
+func (sh ServerHandler) serve(res *Response, req IProtocol) {
 	router := sh.server.Handler
-	if router == nil {
-		router = defaultServeRouter
-	}
-
 	router.serve(res, req)
 }
 
@@ -99,12 +95,22 @@ const noLimit int64 = (1 << 63) - 1
 type Server struct {
 	Addr		string        // TCP address to listen on, ":http" if empty
 	Handler     Handler       // handler to invoke, http.DefaultServeMux if nil
+	Protocol	IProtocol
 	
 	// ErrorLog specifies an optional logger for errors accepting
 	// connections and unexpected behavior from handlers.
 	// If nil, logging goes to os.Stderr via the log package's
 	// standard logger.
 	ErrorLog *log.Logger
+}
+
+//注册路由相应处理方法
+func (srv *Server) HandleFunc(name uint16, handler func(*Response, IProtocol)) {
+	if (srv.Handler == nil) {
+		srv.Handler = NewServeRouter()
+	}
+	
+	srv.Handler.(*ServeRouter).handleFunc(name, handler)
 }
 
 func (srv *Server) newConn(rc net.Conn) (c *Conn, err error) {
@@ -130,6 +136,7 @@ func (srv *Server) ListenAndServe() error {
 	if addr == "" {
 		addr = ":5917"
 	}
+	
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

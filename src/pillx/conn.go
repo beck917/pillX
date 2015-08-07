@@ -1,24 +1,46 @@
 package pillx
 
 import (
+	//"fmt"
 	"bufio"
 	"io"
 	"net"
 	"sync"
-	"errors"
-	"fmt"
-	"encoding/binary"
-	"bytes"
 )
+
+type IProtocol interface {
+	Analyze(buf *bufio.ReadWriter) (err error)
+	Encode(msg interface{}) (buf []byte, err error)
+	Decode(buf []byte) (err error)
+	GetCmd() (cmd uint16)
+}
+
+const Protocal_Error_TYPE_COMMON uint8 = 1
+const Protocal_Error_TYPE_DISCONNECT uint8 = 2
+
+type ProtocalError struct {
+	err_type uint8
+	err_msg []byte
+	err error
+}
+
+func (e *ProtocalError) Error() string{
+	return e.err.Error()
+}
 
 // A response represents the server side of aresponse.
 type Response struct {
 	conn          *Conn
-	req           *Request // request for this response
-	Id			  int
+	protocol      IProtocol // request for this response
+	channels	  map[string]*Channel
+}
 
-	written       int64 // number of bytes written in body
-	contentLength int64 // explicitly-declared Content-Length; or -1
+//取消所有订阅频道
+func (response *Response) unSubscribeAllChannels() (err error) {
+	for _,channel :=range response.channels {
+		channel.UnSubscribe(response)
+	}
+	return nil
 }
 
 func (response *Response) Write(data []byte) (n int, err error) {
@@ -44,24 +66,10 @@ func (response *Response) SendContent(content []byte) {
 	
 }
 
-func (response *Response) Send(message *Request) {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, message.Header)
-	binary.Write(buf, binary.BigEndian, message.Content)
+func (response *Response) Send(msg interface{}) {
+	buf, _ := response.protocol.Encode(msg)
 	
-	response.Write(buf.Bytes())
-}
-
-type RequestHeader struct {
-	mark		uint8
-	cmd 		uint16
-	error		uint16
-	size		uint16
-}
-
-type Request struct {
-	Header		*RequestHeader
-	Content		[]byte
+	response.Write(buf)
 }
 
 // A conn represents the server side of connection.
@@ -78,80 +86,44 @@ type Conn struct {
 	mu 			sync.Mutex
 }
 
-func (c *Conn) errorResponse(response *Response, errorNum uint16) (err error) {
-	//返回error
-	errorMsg := &RequestHeader{
-		mark:	0xA8,
-		size:	0,
-		cmd:	0x0001,
-		error:	errorNum,
-	}
-	errorBuf := new(bytes.Buffer)
-	errBin := binary.Write(errorBuf, binary.BigEndian, errorMsg)
-	if (errBin != nil) {
-		fmt.Println("binary.Write failed:", errBin)
-		return errBin
-	}
-	fmt.Printf("%x\n", errorBuf.Bytes())
-	response.Write(errorBuf.Bytes())
-	return nil
-}
-
 func (c *Conn) readRequest() (response *Response, err error) {
-	var req *Request
-	req = new(Request)
-	reqHeader := new(RequestHeader)
+	protocol := c.server.Protocol
 	
 	response = &Response{
 		conn:          c,
-		req:           req,
-		contentLength: -1,
+		protocol:      protocol,
+		channels: 	   make(map[string]*Channel),
 	}
 	
-	//初始字节判断
-	var mark_err error
-	reqHeader.mark, mark_err = c.buf.ReadByte()
-	if (mark_err != nil) {
-		response.conn.remonte_conn.Close()
-		return nil, mark_err
-	}
-	if (reqHeader.mark != 0xa8) {
-		c.buf.Reader.Reset(c.lr)
-		//返回error
-		c.errorResponse(response, 0x0001)
-		return nil, errors.New("request mark error")
-	}
-	//取出cmd,size,error,全都是uint16,两个字节
-	cmdB1, _ := c.buf.ReadByte()
-	cmdB2, _ := c.buf.ReadByte()
-	reqHeader.cmd = uint16(cmdB1) << 8 | uint16(cmdB2)
-	
-	errorB1, _ := c.buf.ReadByte()
-	errorB2, _ := c.buf.ReadByte()
-	reqHeader.error = uint16(errorB1) << 8 | uint16(errorB2)
-	
-	sizeB1, _ := c.buf.ReadByte()
-	sizeB2, _ := c.buf.ReadByte()
-	reqHeader.size = uint16(sizeB1) << 8 | uint16(sizeB2)
-	
-	/*
-	reqBuf := c.buf.Read(make([]byte, 7))
-	Request(reqBuf).size
-	*/
-	//根据size取出数据
-	readNum := 0
-	req.Content = make([]byte, reqHeader.size)
-	for readNum < int(reqHeader.size) {
-		readOnceNum,contentError := c.buf.Read(req.Content[readNum:])
-		if contentError != nil {
-			c.buf.Reader.Reset(c.lr)
-			c.errorResponse(response, 0x0002)
-			return nil, errors.New("request size error")
+	err = protocol.Analyze(c.buf)
+	if err != nil {
+		switch err.(type) {
+			case *ProtocalError: 
+				switch err.(*ProtocalError).err_type {
+					case Protocal_Error_TYPE_DISCONNECT:
+						//取消订阅频道
+						response.unSubscribeAllChannels()
+						
+						c.buf.Reader.Reset(c.lr)
+						response.conn.remonte_conn.Close()
+						
+						//发送onclose通知
+						ServerHandler{c.server}.serve(response, protocol)
+						return nil, err
+						break
+					case Protocal_Error_TYPE_COMMON:
+						//数据重置
+						c.buf.Reader.Reset(c.lr)
+						response.Write(err.(*ProtocalError).err_msg)
+						break
+					default:
+						return nil, err
+				}
+			default:
+				return nil, nil
 		}
-		readNum += readOnceNum
+		
 	}
-
-	req.Header = reqHeader
 	return response, nil
 }
 
@@ -165,6 +137,6 @@ func (c *Conn) serve() {
 			break
 		}
 		
-		ServerHandler{c.server}.serve(w, w.req)
+		ServerHandler{c.server}.serve(w, w.protocol)
 	}
 }

@@ -1,7 +1,7 @@
 package pillx
 
 import (
-	"fmt"
+	//"fmt"
 )
 
 type Channel struct {
@@ -30,11 +30,12 @@ func NewChannel(name string) *Channel {
 
 func (channel *Channel) Subscribe (client *Response) {
 	channel.clients[client] = client
+	client.channels[channel.name] = channel
 }
 
-func (channel *Channel) Publish (message *Request) {
+func (channel *Channel) Publish (message interface{}) {
 	for _, client := range channel.clients {
-		fmt.Print(client)
+		//fmt.Print(client)
 		client.Send(message)
 	}
 }
