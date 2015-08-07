@@ -13,6 +13,7 @@ type IProtocol interface {
 	Encode(msg interface{}) (buf []byte, err error)
 	Decode(buf []byte) (err error)
 	GetCmd() (cmd uint16)
+	SetCmd(cmd uint16)
 	New() (protocol IProtocol)
 }
 
@@ -74,6 +75,12 @@ func (response *Response) Send(msg interface{}) {
 	response.Write(buf)
 }
 
+//直接发送回调通知
+func (response *Response) callbackServe(cmd uint16) {
+	response.protocol.SetCmd(cmd)
+	response.conn.server.Handler.serve(response, response.protocol)
+}
+
 // A conn represents the server side of connection.
 type Conn struct {
 	remote_addr 		string
@@ -110,8 +117,6 @@ func (c *Conn) readRequest() (response *Response, err error) {
 						c.buf.Reader.Reset(c.lr)
 						response.conn.remonte_conn.Close()
 						
-						//发送onclose通知
-						//ServerHandler{c.server}.serve(response, protocol)
 						return nil, err
 						break
 					case Protocal_Error_TYPE_COMMON:

@@ -41,8 +41,10 @@ func (router *ServeRouter) serve(w *Response, r IProtocol) {
 	defer router.mu.RUnlock()
 	
 	var handler Handler
-	handler = router.opcode_list[r.GetCmd()].handler
-	handler.serve(w, r)
+	if (router.opcode_list[r.GetCmd()].handler != nil) {
+		handler = router.opcode_list[r.GetCmd()].handler
+		handler.serve(w, r)
+	}
 }
 
 type OpcodeHandler struct {

@@ -19,8 +19,8 @@ func (gateway *GateWayProtocol) New() (protocol IProtocol) {
 func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 	if (gateway.handshake_flg != true) {
 		gateway.handshake_flg = true
-		//派发
-		gateway.cmd = SYS_ON_CONNECT
+		//派发连接通知
+		client.callbackServe(SYS_ON_CONNECT)
 		return nil
 	}
 	
@@ -36,6 +36,10 @@ func (gateway *GateWayProtocol) Encode(msg interface{}) (buf []byte, err error) 
 
 func (gateway *GateWayProtocol) Decode(buf []byte) (err error) {
 	return nil
+}
+
+func (gateway *GateWayProtocol) SetCmd(cmd uint16) {
+	gateway.cmd = cmd
 }
 
 func (gateway *GateWayProtocol) GetCmd() (cmd uint16) {

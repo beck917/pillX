@@ -48,11 +48,13 @@ func (req *Request) errorMsg(err_type uint8, err_num uint16, err_prama error) (e
 func (req *Request) Analyze(client *Response) (err error) {
 	buf := client.conn.buf
 	reqHeader := new(RequestHeader)
+	req.Header = reqHeader
 	
 	//初始字节判断
 	var mark_err error
 	reqHeader.mark, mark_err = buf.ReadByte()
 	if (mark_err != nil) {
+		client.callbackServe(SYS_ON_CLOSE)
 		return &ProtocalError{
 					err_type:	Protocal_Error_TYPE_DISCONNECT,
 					err:		mark_err,
@@ -90,7 +92,7 @@ func (req *Request) Analyze(client *Response) (err error) {
 		}
 		readNum += readOnceNum
 	}
-	req.Header = reqHeader
+	
 	return nil
 }
 
@@ -104,6 +106,10 @@ func (req *Request) Encode(msg interface{}) (buf []byte, err error) {
 
 func (req *Request) Decode(buf []byte) (err error) {
 	return nil
+}
+
+func (req *Request) SetCmd(cmd uint16) {
+	req.Header.cmd = cmd
 }
 
 func (req *Request) GetCmd() (cmd uint16) {
