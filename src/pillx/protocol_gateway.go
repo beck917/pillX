@@ -4,12 +4,20 @@ import (
 	//"errors"
 	"bytes"
 	//"fmt"
+	"encoding/binary"
 )
 
+type GatewayHeader struct {
+	Mark		uint8
+	Cmd 		uint16
+	Error		uint16
+	Size		uint16
+	ClientId	uint64
+}
+
 type GateWayProtocol struct {
+	Header			*GatewayHeader
 	Content			[]byte
-	handshake_flg	bool
-	cmd				uint16
 }
 
 func (gateway *GateWayProtocol) New() (protocol IProtocol) {
@@ -17,19 +25,21 @@ func (gateway *GateWayProtocol) New() (protocol IProtocol) {
 }
 
 func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
-	if (gateway.handshake_flg != true) {
-		gateway.handshake_flg = true
+	if (client.handshake_flg != true) {
+		client.handshake_flg = true
 		//派发连接通知
 		client.callbackServe(SYS_ON_CONNECT)
 		return nil
 	}
 	
-	gateway.cmd = SYS_ON_MESSAGE
+	client.callbackServe(SYS_ON_MESSAGE)
 	return nil
 }
 
 func (gateway *GateWayProtocol) Encode(msg interface{}) (buf []byte, err error) {
 	buff := new(bytes.Buffer)
+	binary.Write(buff, binary.BigEndian, msg.(*GateWayProtocol).Header)
+	binary.Write(buff, binary.BigEndian, msg.(*GateWayProtocol).Content)
 
 	return buff.Bytes(),nil
 }
@@ -39,9 +49,9 @@ func (gateway *GateWayProtocol) Decode(buf []byte) (err error) {
 }
 
 func (gateway *GateWayProtocol) SetCmd(cmd uint16) {
-	gateway.cmd = cmd
+	gateway.Header.Cmd = cmd
 }
 
 func (gateway *GateWayProtocol) GetCmd() (cmd uint16) {
-	return gateway.cmd
+	return gateway.Header.Cmd
 }

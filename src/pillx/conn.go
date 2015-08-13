@@ -1,6 +1,7 @@
 package pillx
 
 import (
+	"sync/atomic"
 	//"fmt"
 	"bufio"
 	"io"
@@ -36,6 +37,7 @@ type Response struct {
 	protocol      	IProtocol // request for this response
 	channels	  	map[string]*Channel
 	handshake_flg	bool //是否已经通过握手验证
+	Id				uint64
 }
 
 //取消所有订阅频道
@@ -95,6 +97,8 @@ type Conn struct {
 	mu 			sync.Mutex
 }
 
+var client_id uint64 = 0;
+
 func (c *Conn) readRequest() (response *Response, err error) {
 	//为此连接创建一个新的协议类对象
 	protocol := c.server.Protocol.New()
@@ -103,6 +107,10 @@ func (c *Conn) readRequest() (response *Response, err error) {
 		conn:          c,
 		protocol:      protocol,
 		channels: 	   make(map[string]*Channel),
+	}
+	
+	if (response.Id == 0) {
+		response.Id = atomic.AddUint64(&client_id, 1)
 	}
 	
 	err = protocol.Analyze(response)
