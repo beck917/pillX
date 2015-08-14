@@ -73,6 +73,7 @@ func (req *PillProtocol) Analyze(client *Response) (err error) {
 	errorB1, _ := buf.ReadByte()
 	errorB2, _ := buf.ReadByte()
 	reqHeader.Error = uint16(errorB1) << 8 | uint16(errorB2)
+	cmd := reqHeader.Cmd
 	
 	sizeB1, _ := buf.ReadByte()
 	sizeB2, _ := buf.ReadByte()
@@ -92,6 +93,7 @@ func (req *PillProtocol) Analyze(client *Response) (err error) {
 		readNum += readOnceNum
 	}
 	client.callbackServe(SYS_ON_MESSAGE)
+	req.Header.Cmd = cmd
 	
 	return nil
 }

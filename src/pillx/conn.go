@@ -36,8 +36,10 @@ type Response struct {
 	conn          	*Conn
 	protocol      	IProtocol // request for this response
 	channels	  	map[string]*Channel
-	handshake_flg	bool //是否已经通过握手验证
-	Id				uint64
+}
+
+func (response *Response) GetConn() (*Conn) {
+	return response.conn
 }
 
 //取消所有订阅频道
@@ -80,6 +82,7 @@ func (response *Response) Send(msg interface{}) {
 //直接发送回调通知
 func (response *Response) callbackServe(cmd uint16) {
 	response.protocol.SetCmd(cmd)
+
 	response.conn.server.Handler.serve(response, response.protocol)
 }
 
@@ -93,6 +96,8 @@ type Conn struct {
 	sr         			liveSwitchReader     // where the LimitReader reads from; usually the rwc
 	lr         			*io.LimitedReader    // io.LimitReader(sr)
 	buf 				*bufio.ReadWriter
+	handshake_flg		bool //是否已经通过握手验证
+	Id					uint64
 	
 	mu 			sync.Mutex
 }
@@ -109,8 +114,8 @@ func (c *Conn) readRequest() (response *Response, err error) {
 		channels: 	   make(map[string]*Channel),
 	}
 	
-	if (response.Id == 0) {
-		response.Id = atomic.AddUint64(&client_id, 1)
+	if (c.Id == 0) {
+		c.Id = atomic.AddUint64(&client_id, 1)
 	}
 	
 	err = protocol.Analyze(response)
@@ -153,6 +158,8 @@ func (c *Conn) serve() {
 			break
 		}
 		
-		ServerHandler{c.server}.serve(w, w.protocol)
+		if (w.protocol.GetCmd() != SYS_ON_CONNECT) {
+			ServerHandler{c.server}.serve(w, w.protocol)
+		}
 	}
 }

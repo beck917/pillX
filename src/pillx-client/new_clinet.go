@@ -80,7 +80,7 @@ func main() {
 	 
 	    defer conn.Close()
 	 
-	    //fmt.Println("connect success")
+	    fmt.Println("connect success")
 		
 		go func() {
 			for {

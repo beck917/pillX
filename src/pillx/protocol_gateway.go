@@ -1,18 +1,18 @@
 package pillx
 
 import (
-	//"errors"
+	"errors"
 	"bytes"
-	//"fmt"
+	"fmt"
 	"encoding/binary"
 )
 
 type GatewayHeader struct {
 	Mark		uint8
 	Cmd 		uint16
+	ClientId	uint64
 	Error		uint16
 	Size		uint16
-	ClientId	uint64
 }
 
 type GateWayProtocol struct {
@@ -24,15 +24,84 @@ func (gateway *GateWayProtocol) New() (protocol IProtocol) {
 	return new(GateWayProtocol)
 }
 
+func (gateway *GateWayProtocol) errorMsg(err_type uint8, err_num uint16, err_prama error) (err error) {
+	//返回error
+	errorMsg := &PillProtocolHeader{
+		Mark:	0xA8,
+		Size:	0,
+		Cmd:	0x0001,
+		Error:	err_num,
+	}
+	errorBuf := new(bytes.Buffer)
+	errBin := binary.Write(errorBuf, binary.BigEndian, errorMsg)
+	if (errBin != nil) {
+		fmt.Println("binary.Write failed:", errBin)
+		return errBin
+	}
+	
+	return &ProtocalError{
+		err_type:	err_type,
+		err_msg:	errorBuf.Bytes(),
+		err:		err_prama,
+	}
+}
+
 func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
-	if (client.handshake_flg != true) {
-		client.handshake_flg = true
+	header := new(GatewayHeader)
+	gateway.Header = header
+	buf := client.conn.buf
+	if (client.conn.handshake_flg != true) {
+		client.conn.handshake_flg = true
 		//派发连接通知
 		client.callbackServe(SYS_ON_CONNECT)
 		return nil
 	}
+	//初始字节判断
+	var mark_err error
+	header.Mark, mark_err = buf.ReadByte()
+	if (mark_err != nil) {
+		client.callbackServe(SYS_ON_CLOSE)
+		return &ProtocalError{
+					err_type:	Protocal_Error_TYPE_DISCONNECT,
+					err:		mark_err,
+				}
+	}
+	if (header.Mark != 0xa8) {
+		//返回error
+		return gateway.errorMsg(Protocal_Error_TYPE_COMMON, 0x0001, errors.New("request mark error"))
+	}
+	//取出cmd,size,error,全都是uint16,两个字节
+	cmdB1, _ := buf.ReadByte()
+	cmdB2, _ := buf.ReadByte()
+	header.Cmd = uint16(cmdB1) << 8 | uint16(cmdB2)
+	cmd := header.Cmd
+
+	clientId, _ := buf.Read(make([]byte, 8))
+	header.ClientId = uint64(clientId)
+
+	errorB1, _ := buf.ReadByte()
+	errorB2, _ := buf.ReadByte()
+	header.Error = uint16(errorB1) << 8 | uint16(errorB2)
 	
+	sizeB1, _ := buf.ReadByte()
+	sizeB2, _ := buf.ReadByte()
+	header.Size = uint16(sizeB1) << 8 | uint16(sizeB2)
+	
+	//根据size取出数据
+	readNum := 0
+	gateway.Content = make([]byte, header.Size)
+	for readNum < int(header.Size) {
+		readOnceNum,contentError := buf.Read(gateway.Content[readNum:])
+		if contentError != nil {
+			return &ProtocalError{
+						err_type:	Protocal_Error_TYPE_DISCONNECT,
+						err:		contentError,
+					}
+		}
+		readNum += readOnceNum
+	}
 	client.callbackServe(SYS_ON_MESSAGE)
+	gateway.Header.Cmd = cmd
 	return nil
 }
 
