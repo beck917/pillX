@@ -28,14 +28,15 @@ func innerMessageHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 	header.Error = req.Header.Error
 	header.Mark = req.Header.Mark
 	header.Size = req.Header.Size
-	
-	buf, _ := pillProtocol.Encode(pillProtocol)
-	pillProtocol.Content = buf
+	pillProtocol.Content = req.Content
 	
 	//发送给client
-	client := clients[worker.GetConn().Id]
+	client := clients[req.Header.ClientId]
+	fmt.Printf("发送给client %d\n", req.Header.ClientId)
+	fmt.Printf("%x", pillProtocol.Header)
+	fmt.Printf("%s", pillProtocol.Content)
 	client.Send(pillProtocol)
-	fmt.Printf("发送给client %d\n", worker.GetConn().Id)
+	fmt.Printf("发送给client %d\n", req.Header.ClientId)
 }
 
 func innerCloseHandler(client *pillx.Response, protocol pillx.IProtocol) {
@@ -60,11 +61,10 @@ func outerMessageHandler(client *pillx.Response, protocol pillx.IProtocol) {
 	header.Mark = req.Header.Mark
 	header.Size = req.Header.Size
 	gatewayProtocol.Content = req.Content
-
-	//buf, _ := gatewayProtocol.Encode(gatewayProtocol)
 	
 	//发送给一个合适的worker
 	worker := workers[worker_id]
+	fmt.Printf("%x", gatewayProtocol.Header)
 	worker.Send(gatewayProtocol)
 	fmt.Printf("发送给worker %d\n", worker_id)
 }

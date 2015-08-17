@@ -50,6 +50,7 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 	header := new(GatewayHeader)
 	gateway.Header = header
 	buf := client.conn.buf
+	
 	if (client.conn.handshake_flg != true) {
 		client.conn.handshake_flg = true
 		//派发连接通知
@@ -74,10 +75,11 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 	cmdB1, _ := buf.ReadByte()
 	cmdB2, _ := buf.ReadByte()
 	header.Cmd = uint16(cmdB1) << 8 | uint16(cmdB2)
-	cmd := header.Cmd
-
-	clientId, _ := buf.Read(make([]byte, 8))
-	header.ClientId = uint64(clientId)
+	
+	clientId := make([]byte, 8)
+	buf.Read(clientId)
+	b_buf := bytes.NewBuffer(clientId)
+    binary.Read(b_buf, binary.BigEndian, &header.ClientId)
 
 	errorB1, _ := buf.ReadByte()
 	errorB2, _ := buf.ReadByte()
@@ -101,7 +103,6 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 		readNum += readOnceNum
 	}
 	client.callbackServe(SYS_ON_MESSAGE)
-	gateway.Header.Cmd = cmd
 	return nil
 }
 

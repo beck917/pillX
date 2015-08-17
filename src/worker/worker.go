@@ -12,6 +12,7 @@ func connectHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 func helloHandler(client *pillx.Response, protocol pillx.IProtocol) {
 	fmt.Println("test5")
 	req := protocol.(*pillx.GateWayProtocol)
+	fmt.Printf("%x", req.Header)
 	fmt.Println(string(req.Content))
 	client.Send(req)
 }

@@ -14,7 +14,6 @@ type IProtocol interface {
 	Encode(msg interface{}) (buf []byte, err error)
 	Decode(buf []byte) (err error)
 	GetCmd() (cmd uint16)
-	SetCmd(cmd uint16)
 	New() (protocol IProtocol)
 }
 
@@ -81,9 +80,10 @@ func (response *Response) Send(msg interface{}) {
 
 //直接发送回调通知
 func (response *Response) callbackServe(cmd uint16) {
-	response.protocol.SetCmd(cmd)
+	//response.protocol.SetCmd(cmd)
+	//response.conn.server.Handler.serve(response, response.protocol)
 
-	response.conn.server.Handler.serve(response, response.protocol)
+	response.conn.server.Handler.(*ServeRouter).serveOnfunc(response, response.protocol, cmd)
 }
 
 // A conn represents the server side of connection.

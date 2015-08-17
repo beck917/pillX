@@ -47,6 +47,18 @@ func (router *ServeRouter) serve(w *Response, r IProtocol) {
 	}
 }
 
+// 专门用于onmessege,close,connect等
+func (router *ServeRouter) serveOnfunc(w *Response, r IProtocol, cmd uint16) {
+	router.mu.RLock()
+	defer router.mu.RUnlock()
+	
+	var handler Handler
+	if (router.opcode_list[cmd].handler != nil) {
+		handler = router.opcode_list[cmd].handler
+		handler.serve(w, r)
+	}
+}
+
 type OpcodeHandler struct {
 	name     	uint16
 	handler     Handler

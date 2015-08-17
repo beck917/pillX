@@ -50,6 +50,13 @@ func (req *PillProtocol) Analyze(client *Response) (err error) {
 	reqHeader := new(PillProtocolHeader)
 	req.Header = reqHeader
 	
+	if (client.conn.handshake_flg != true) {
+		client.conn.handshake_flg = true
+		//派发连接通知
+		client.callbackServe(SYS_ON_CONNECT)
+		return nil
+	}
+	
 	//初始字节判断
 	var mark_err error
 	reqHeader.Mark, mark_err = buf.ReadByte()
@@ -73,7 +80,6 @@ func (req *PillProtocol) Analyze(client *Response) (err error) {
 	errorB1, _ := buf.ReadByte()
 	errorB2, _ := buf.ReadByte()
 	reqHeader.Error = uint16(errorB1) << 8 | uint16(errorB2)
-	cmd := reqHeader.Cmd
 	
 	sizeB1, _ := buf.ReadByte()
 	sizeB2, _ := buf.ReadByte()
@@ -93,7 +99,6 @@ func (req *PillProtocol) Analyze(client *Response) (err error) {
 		readNum += readOnceNum
 	}
 	client.callbackServe(SYS_ON_MESSAGE)
-	req.Header.Cmd = cmd
 	
 	return nil
 }
