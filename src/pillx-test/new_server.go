@@ -26,7 +26,7 @@ func main() {
 	server := &pillx.Server{
 		Addr:          ":8080",
 		Handler:        nil,
-		Protocol:		new(pillx.Request),
+		Protocol:		new(pillx.PillProtocol),
 	}
 	server.HandleFunc(0x0DDC, helloHandler)
 	server.HandleFunc(pillx.SYS_ON_CLOSE, closeHandler)

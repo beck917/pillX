@@ -1,0 +1,6 @@
+# Mac OS X
+*.DS_Store
+/bin/*
+/pkg/*
+/pkg/*/
+*.a
