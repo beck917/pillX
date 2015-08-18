@@ -2,9 +2,9 @@
 a simple &amp; powerful network Library written in Go
 
 #目录结构
-  gateway 网关服务器
-  worker 逻辑服务器
-  pillx   pillx网络通信库核心代码
+  gateway 网关服务器<br />
+  worker 逻辑服务器<br />
+  pillx   pillx网络通信库核心代码<br />
   
 #运行原理
   gateway 用于维护客户端连接,并转发客户端的数据给Worker进程处理
