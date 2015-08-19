@@ -16,7 +16,7 @@ a simple &amp; powerful network Library written in Go
   text协议 文本协议,主要用于测试<br />
   websocket协议 待开发,用于html5页面通信的协议
   
-使用实例
+#使用实例
   pillx参考了go官方net库中的http的使用方式
   
 	server := &pillx.Server{
