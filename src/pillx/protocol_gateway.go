@@ -50,7 +50,7 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 	header := new(GatewayHeader)
 	gateway.Header = header
 	buf := client.conn.buf
-	
+
 	if (client.conn.handshake_flg != true) {
 		client.conn.handshake_flg = true
 		//派发连接通知
@@ -67,10 +67,12 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 					err:		mark_err,
 				}
 	}
+	
 	if (header.Mark != 0xa8) {
 		//返回error
 		return gateway.errorMsg(Protocal_Error_TYPE_COMMON, 0x0001, errors.New("request mark error"))
 	}
+	fmt.Println("test1")
 	//取出cmd,size,error,全都是uint16,两个字节
 	cmdB1, _ := buf.ReadByte()
 	cmdB2, _ := buf.ReadByte()
@@ -103,6 +105,7 @@ func (gateway *GateWayProtocol) Analyze(client *Response) (err error) {
 		readNum += readOnceNum
 	}
 	client.callbackServe(SYS_ON_MESSAGE)
+	
 	return nil
 }
 

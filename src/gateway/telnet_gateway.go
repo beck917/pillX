@@ -1,5 +1,5 @@
 package main
-/**
+
 import (
 	"pillx"
 	"fmt"
@@ -10,6 +10,7 @@ var workers map[uint32] *pillx.Response
 var worker_id uint32 = 0;
 
 var clients map[uint64] *pillx.Response
+var chat_channel *pillx.Channel;
 
 func innerConnectHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 	worker_id = atomic.AddUint32(&worker_id, 1)
@@ -19,24 +20,16 @@ func innerConnectHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 
 func innerMessageHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 	//将gateway协议转化为客户端协议
-	pillProtocol := &pillx.PillProtocol{}
-	header := &pillx.PillProtocolHeader{}
-	pillProtocol.Header = header
-	
+	textProtocol := &pillx.TextProtocol{}
+	fmt.Printf("test5\n")
 	req := protocol.(*pillx.GateWayProtocol)
-	header.Cmd = req.Header.Cmd
-	header.Error = req.Header.Error
-	header.Mark = req.Header.Mark
-	header.Size = req.Header.Size
-	pillProtocol.Content = req.Content
+	textProtocol.Content = req.Content
 	
 	//发送给client
-	client := clients[req.Header.ClientId]
-	fmt.Printf("发送给client %d\n", req.Header.ClientId)
-	fmt.Printf("%x", pillProtocol.Header)
-	fmt.Printf("%s", pillProtocol.Content)
-	client.Send(pillProtocol)
-	fmt.Printf("发送给client %d\n", req.Header.ClientId)
+	//client := clients[req.Header.ClientId]
+	fmt.Printf("发送给clients")
+	//client.Send(textProtocol)
+	chat_channel.Publish(textProtocol)
 }
 
 func innerCloseHandler(client *pillx.Response, protocol pillx.IProtocol) {
@@ -46,6 +39,9 @@ func innerCloseHandler(client *pillx.Response, protocol pillx.IProtocol) {
 func outerConnectHandler(client *pillx.Response, protocol pillx.IProtocol) {
 	clients[client.GetConn().Id] = client
 	fmt.Printf("client %d 连接到此网关\n", client.GetConn().Id)
+	
+	//频道
+	chat_channel.Subscribe(client);
 }
 
 func outerMessageHandler(client *pillx.Response, protocol pillx.IProtocol) {
@@ -55,16 +51,17 @@ func outerMessageHandler(client *pillx.Response, protocol pillx.IProtocol) {
 	gatewayProtocol.Header = header
 	
 	header.ClientId = client.GetConn().Id
-	req := protocol.(*pillx.PillProtocol)
-	header.Cmd = req.Header.Cmd//cmd被覆盖的问题
-	header.Error = req.Header.Error
-	header.Mark = req.Header.Mark
-	header.Size = req.Header.Size
+	req := protocol.(*pillx.TextProtocol)
+	header.Cmd = 0x0DDC
+	header.Error = 0x0000
+	header.Mark = 0xA8
+	header.Size = uint16(len(req.Content))
 	gatewayProtocol.Content = req.Content
 	
 	//发送给一个合适的worker
 	worker := workers[worker_id]
 	fmt.Printf("%x", gatewayProtocol.Header)
+	fmt.Printf("%s", req.Content)
 	worker.Send(gatewayProtocol)
 	fmt.Printf("发送给worker %d\n", worker_id)
 }
@@ -76,6 +73,8 @@ func outerCloseHandler(client *pillx.Response, protocol pillx.IProtocol) {
 func main() {
 	workers = make(map[uint32] *pillx.Response)
 	clients = make(map[uint64] *pillx.Response)
+	
+	chat_channel = pillx.NewChannel("chat")
 	
 	innerServer := &pillx.Server{
 		Addr:          ":10086",
@@ -91,7 +90,7 @@ func main() {
 	outerServer := &pillx.Server{
 		Addr:          ":8080",
 		Handler:        nil,
-		Protocol:		&pillx.PillProtocol{},
+		Protocol:		&pillx.TextProtocol{},
 	}
 	outerServer.HandleFunc(pillx.SYS_ON_CONNECT, outerConnectHandler)
 	outerServer.HandleFunc(pillx.SYS_ON_MESSAGE, outerMessageHandler)
@@ -99,4 +98,3 @@ func main() {
 	fmt.Println("外部通信网关服务启动")
 	outerServer.ListenAndServe()
 }
-*/

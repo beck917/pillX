@@ -1,8 +1,9 @@
 package main
-/**
+
 import (
 	"pillx"
 	"fmt"
+	"strconv"
 )
 
 func connectHandler(worker *pillx.Response, protocol pillx.IProtocol) {
@@ -10,10 +11,12 @@ func connectHandler(worker *pillx.Response, protocol pillx.IProtocol) {
 }
 
 func helloHandler(client *pillx.Response, protocol pillx.IProtocol) {
-	fmt.Println("test5")
+	fmt.Println("test3")
 	req := protocol.(*pillx.GateWayProtocol)
 	fmt.Printf("%x", req.Header)
-	fmt.Println(string(req.Content))
+	fmt.Printf("%s", req.Content)
+	req.Content =  []byte("user" + strconv.FormatUint(req.Header.ClientId, 10) + ":  " + string(req.Content)+"\r\n")
+	req.Header.Size = uint16(len(req.Content))
 	client.Send(req)
 }
 
@@ -34,4 +37,3 @@ func main() {
 	client.HandleFunc(pillx.SYS_ON_MESSAGE, messageHandler)
 	client.Dial()
 }
-*/
