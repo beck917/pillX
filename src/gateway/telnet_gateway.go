@@ -67,7 +67,7 @@ func outerMessageHandler(client *pillx.Response, protocol pillx.IProtocol) {
 }
 
 func outerCloseHandler(client *pillx.Response, protocol pillx.IProtocol) {
-
+	delete(clients, client)
 }
 
 func main() {
