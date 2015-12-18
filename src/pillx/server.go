@@ -144,6 +144,29 @@ func (srv *Server) ListenAndServe() error {
 	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
+func (srv *Server) ListenAndServeUdp() error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":5917"
+	}
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return err
+	}
+	conn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return err
+	}
+	
+	for {
+		c, err := srv.newConn(conn)
+		if err != nil {
+			continue
+		}
+		go c.serve()
+	}
+}
+
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each.  The service goroutines read requests and
 // then call srv.Handler to reply to them.
@@ -160,7 +183,7 @@ func (srv *Server) Serve(l net.Listener) error {
 				} else {
 					tempDelay *= 2
 				}
-				if max := 1 * time.Second; tempDelay > max {
+				if max := 1 * time.Second; tempDelay > max { 
 					tempDelay = max
 				}
 				srv.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
