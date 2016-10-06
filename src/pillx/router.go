@@ -18,8 +18,8 @@ func (f HandlerFunc) serve(w *Response, r IProtocol) {
 }
 
 type ServeRouter struct {
-	mu    sync.RWMutex
-	opcode_list     map[uint16]OpcodeHandler
+	mu          sync.RWMutex
+	opcode_list map[uint16]OpcodeHandler
 }
 
 //将router对应的opcode,方法存储
@@ -39,9 +39,9 @@ func (rounter *ServeRouter) handleFunc(name uint16, handler func(*Response, IPro
 func (router *ServeRouter) serve(w *Response, r IProtocol) {
 	router.mu.RLock()
 	defer router.mu.RUnlock()
-	
+
 	var handler Handler
-	if (router.opcode_list[r.GetCmd()].handler != nil) {
+	if router.opcode_list[r.GetCmd()].handler != nil {
 		handler = router.opcode_list[r.GetCmd()].handler
 		handler.serve(w, r)
 	}
@@ -51,17 +51,26 @@ func (router *ServeRouter) serve(w *Response, r IProtocol) {
 func (router *ServeRouter) serveOnfunc(w *Response, r IProtocol, cmd uint16) {
 	router.mu.RLock()
 	defer router.mu.RUnlock()
-	
+	//TODO 正式上线打开
+	/**
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+	*/
+
 	var handler Handler
-	if (router.opcode_list[cmd].handler != nil) {
+	if router.opcode_list[cmd].handler != nil {
 		handler = router.opcode_list[cmd].handler
+
 		handler.serve(w, r)
 	}
 }
 
 type OpcodeHandler struct {
-	name     	uint16
-	handler     Handler
+	name    uint16
+	handler Handler
 }
 
 // NewServeRouter allocates and returns a new ServeRouter.

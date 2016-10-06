@@ -1,0 +1,52 @@
+package Proto;
+
+message ChatHeader {
+	//optional int32 RoomId   = 1;
+	//optional int32 Type   = 2;
+	//optional int32 Status   = 3;
+	//optional int32 Cmd   = 4;
+	//optional int32 Sid   = 5;
+	//正常消息为1，返回消息非1
+	optional int32 Code = 1;
+	optional string Msg = 2;
+}
+
+message ChatData{
+	optional ChatHeader Header = 1;
+	optional string Msg = 3;
+	optional string Msgjson = 4;
+	optional int32 Uid = 5;
+	optional string Uname = 6;
+	optional string Upic = 7;
+	optional string Utitle = 8;
+	optional string Img = 9;
+	optional int32 Timestamp = 10;
+}
+
+message ChatList {
+	repeated ChatData ChatItem = 1;
+}
+
+message BlockData{
+	optional ChatHeader Header = 1;
+	optional int32 BlockUid = 2;
+}
+
+message WorkerHandShark {
+	optional string IP   = 1;
+}
+
+message MessageData {
+	optional ChatHeader Header = 1;
+}
+
+message HandShake {
+	optional ChatHeader Header = 1;
+	optional int32 Timestamp = 2;
+	optional uint32 Token = 3;
+	optional int32 RoomId = 4;
+	optional int32 ConnectId = 5;
+	optional int32 Uid = 6;
+	optional int32 Platform = 7;
+	optional string Uname = 8;
+}

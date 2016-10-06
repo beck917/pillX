@@ -88,15 +88,14 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-
 // noLimit is an effective infinite upper bound for io.LimitedReader
 const noLimit int64 = (1 << 63) - 1
 
 type Server struct {
-	Addr		string        // TCP address to listen on, ":http" if empty
-	Handler     Handler       // handler to invoke, http.DefaultServeMux if nil
-	Protocol	IProtocol
-	
+	Addr     string  // TCP address to listen on, ":http" if empty
+	Handler  Handler // handler to invoke, http.DefaultServeMux if nil
+	Protocol IProtocol
+
 	// ErrorLog specifies an optional logger for errors accepting
 	// connections and unexpected behavior from handlers.
 	// If nil, logging goes to os.Stderr via the log package's
@@ -106,23 +105,23 @@ type Server struct {
 
 //注册路由相应处理方法
 func (srv *Server) HandleFunc(name uint16, handler func(*Response, IProtocol)) {
-	if (srv.Handler == nil) {
+	if srv.Handler == nil {
 		srv.Handler = NewServeRouter()
 	}
-	
+
 	srv.Handler.(*ServeRouter).handleFunc(name, handler)
 }
 
 func (srv *Server) newConn(rc net.Conn) (c *Conn, err error) {
-	c = new(Conn);
+	c = new(Conn)
 	c.remote_addr = rc.RemoteAddr().String()
 	c.server = srv
 	c.remonte_conn = rc
 	c.io_writer = rc
-	
+
 	c.sr = liveSwitchReader{r: c.remonte_conn}
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
-	br := newBufioReader(c.lr)
+	br := newBufioReader(c.lr) //bufio pool
 	bw := newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 	c.buf = bufio.NewReadWriter(br, bw)
 	return c, nil
@@ -136,7 +135,7 @@ func (srv *Server) ListenAndServe() error {
 	if addr == "" {
 		addr = ":5917"
 	}
-	
+
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -157,7 +156,7 @@ func (srv *Server) ListenAndServeUdp() error {
 	if err != nil {
 		return err
 	}
-	
+
 	for {
 		c, err := srv.newConn(conn)
 		if err != nil {
@@ -183,7 +182,7 @@ func (srv *Server) Serve(l net.Listener) error {
 				} else {
 					tempDelay *= 2
 				}
-				if max := 1 * time.Second; tempDelay > max { 
+				if max := 1 * time.Second; tempDelay > max {
 					tempDelay = max
 				}
 				srv.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
