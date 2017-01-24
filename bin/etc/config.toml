@@ -1,0 +1,12 @@
+[etcd]
+Host = "115.29.164.163:2379"
+
+[pillx]
+GatewayOuterHost = "172.16.1.116"
+GatewayOuterPort = 9127
+GatewayInnerHost = "127.0.0.1"
+GatewayInnerPort = 10086
+WorkerInnerHost = "127.0.0.1"
+WorkerInnerPort = 18600
+GatewayName     = "testgateway"
+WorkerName      = "testworker"

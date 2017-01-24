@@ -2,14 +2,17 @@ package pillx
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/binary"
 	"io"
 	"log"
+	"strings"
 )
 
 type WebSocketHeader struct {
 	OpcodeByte  byte
-	ProloadByte byte
+	PayloadByte byte
 }
 
 type WebSocketProtocol struct {
@@ -18,29 +21,31 @@ type WebSocketProtocol struct {
 }
 
 func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
-	var err error
+	var (
+		opcode byte
+	)
 	header := new(WebSocketHeader)
 	websocket.Header = header
 	buf := client.conn.buf
 
 	//读取fin
 	header.OpcodeByte, err = buf.ReadByte()
-	fin := header.fin[0] >> 7
+	fin := header.OpcodeByte >> 7
 	if fin == 0 {
 
 	}
 
 	//读取opcode
-	opcode, err = header.OpcodeByte & 0x0f
+	opcode = header.OpcodeByte & 0x0f
 	if opcode == 8 {
 		log.Print("Connection closed")
 		//self.Close()
-		break
+		return
 	}
 
-	header.ProloadByte, err = buf.ReadByte()
-	mask := header.ProloadByte >> 7
-	proload := header.ProloadByte & 0x7f
+	header.PayloadByte, err = buf.ReadByte()
+	mask := header.PayloadByte >> 7
+	payload := header.PayloadByte & 0x7f
 
 	var (
 		lengthBytes  []byte
@@ -78,7 +83,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	if mask == 1 {
 		//解码内容
 		for i, v := range contentBuf {
-			contentBuf[i] = v ^ mkey[i%4]
+			contentBuf[i] = v ^ maskKeyBytes[i%4]
 		}
 	}
 	websocket.Content = contentBuf
@@ -111,7 +116,7 @@ func (gateway *WebSocketProtocol) Encode(msg interface{}) (buf []byte, err error
 		frame = append(frame, buf...)
 	default:
 		log.Fatal("Data too large")
-		return false
+		return
 	}
 	frame = append(frame, data...)
 
@@ -120,18 +125,18 @@ func (gateway *WebSocketProtocol) Encode(msg interface{}) (buf []byte, err error
 	return buff.Bytes(), nil
 }
 
-func (self *WebSocketProtocol) Handshake() []byte {
-	if self.Shook {
-		return true
+func (this *WebSocketProtocol) Handshake(client *Response) (bool, []byte) {
+	if client.conn.HandshakeFlg == true {
+		return true, nil
 	}
-	reader := bufio.NewReader(self.Conn)
+	reader := client.conn.buf
 	key := ""
 	str := ""
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil {
 			log.Fatal(err)
-			return false
+			return false, nil
 		}
 		if len(line) == 0 {
 			break
@@ -150,6 +155,6 @@ func (self *WebSocketProtocol) Handshake() []byte {
 		"Sec-WebSocket-Version: 13\r\n" +
 		"Sec-WebSocket-Accept: " + key + "\r\n" +
 		"Upgrade: websocket\r\n\r\n"
-
-	return []byte(header)
+	client.conn.HandshakeFlg = true
+	return true, []byte(header)
 }

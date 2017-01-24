@@ -1,6 +1,8 @@
 # Mac OS X
 *.DS_Store
-/bin/*
 /pkg/*
 /pkg/*/
 *.a
+bin/gateway.exe
+bin/linux_amd64/pillx-gateway
+bin/linux_amd64/websocket-gateway
