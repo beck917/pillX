@@ -62,7 +62,7 @@ func getAdminBlack() {
 }
 
 func main() {
-	tomlConfig, err := toml.LoadTomlConfig("etc/config.toml")
+	tomlConfig, err := toml.LoadTomlConfig("C:\\Code\\pillX\\bin\\etc\\config.toml")
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +72,7 @@ func main() {
 	http.HandleFunc("/lastmsg", lastMsg)
 	go http.ListenAndServe(":8008", nil)
 
-	gateway := &pillx.Gateway{
+	gateway := &pillx.GatewayWebsocket{
 		InnerAddr:   fmt.Sprintf("%s:%d", tomlConfig.Pillx.GatewayInnerHost, tomlConfig.Pillx.GatewayInnerPort),
 		OuterAddr:   fmt.Sprintf("%s:%d", tomlConfig.Pillx.GatewayOuterHost, tomlConfig.Pillx.GatewayOuterPort),
 		GatewayName: fmt.Sprintf("%s%d", tomlConfig.Pillx.GatewayName, 1),
@@ -88,7 +88,7 @@ func main() {
 	c.Start()
 	getAdminBlack()
 
-	gateway.OuterProtocol = &pillx.PillProtocol{}
+	gateway.OuterProtocol = &pillx.WebSocketProtocol{}
 	gateway.EtcdClient = etcdClient
 	gateway.Init()
 }

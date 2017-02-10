@@ -20,7 +20,28 @@ type WebSocketProtocol struct {
 	Content []byte
 }
 
+func (this *WebSocketProtocol) New() (protocol IProtocol) {
+	return new(WebSocketProtocol)
+}
+
 func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
+
+	if client.conn.connected_flg != true {
+		client.conn.connected_flg = true
+		//派发连接通知
+		client.callbackServe(SYS_ON_CONNECT)
+		return nil
+	}
+
+	_, headerReq := websocket.Handshake(client)
+
+	if len(headerReq) != 0 {
+		//返回数据
+		client.conn.buf.Write(headerReq)
+		client.conn.buf.Flush()
+		return nil
+	}
+
 	var (
 		opcode byte
 	)
@@ -34,7 +55,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	if fin == 0 {
 
 	}
-
+	log.Println(header.OpcodeByte)
 	//读取opcode
 	opcode = header.OpcodeByte & 0x0f
 	if opcode == 8 {
@@ -44,6 +65,14 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	}
 
 	header.PayloadByte, err = buf.ReadByte()
+
+	if err != nil {
+		return &ProtocalError{
+			err_type: Protocal_Error_TYPE_DISCONNECT,
+			err:      err,
+		}
+	}
+
 	mask := header.PayloadByte >> 7
 	payload := header.PayloadByte & 0x7f
 
@@ -92,39 +121,6 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	return nil
 }
 
-func (gateway *WebSocketProtocol) Encode(msg interface{}) (buf []byte, err error) {
-	buff := new(bytes.Buffer)
-	//binary.Write(buff, binary.BigEndian, msg.(*GateWayProtocol).Header)
-
-	frame := []byte{129}
-
-	data := msg.(*GateWayProtocol).Content
-	length := len(data)
-
-	switch {
-	case length < 126:
-		frame = append(frame, byte(length))
-	case length <= 0xffff:
-		buf := make([]byte, 2)
-		binary.BigEndian.PutUint16(buf, uint16(length))
-		frame = append(frame, byte(126))
-		frame = append(frame, buf...)
-	case uint64(length) <= 0xffffffffffffffff:
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, uint64(length))
-		frame = append(frame, byte(127))
-		frame = append(frame, buf...)
-	default:
-		log.Fatal("Data too large")
-		return
-	}
-	frame = append(frame, data...)
-
-	binary.Write(buff, binary.BigEndian, frame)
-	//MyLog().Info(buff.Bytes())
-	return buff.Bytes(), nil
-}
-
 func (this *WebSocketProtocol) Handshake(client *Response) (bool, []byte) {
 	if client.conn.HandshakeFlg == true {
 		return true, nil
@@ -157,4 +153,50 @@ func (this *WebSocketProtocol) Handshake(client *Response) (bool, []byte) {
 		"Upgrade: websocket\r\n\r\n"
 	client.conn.HandshakeFlg = true
 	return true, []byte(header)
+}
+
+func (gateway *WebSocketProtocol) Encode(msg interface{}) (buf []byte, err error) {
+	buff := new(bytes.Buffer)
+	//binary.Write(buff, binary.BigEndian, msg.(*GateWayProtocol).Header)
+
+	frame := []byte{129}
+
+	data := msg.(*WebSocketProtocol).Content
+	length := len(data)
+
+	switch {
+	case length < 126:
+		frame = append(frame, byte(length))
+	case length <= 0xffff:
+		buf := make([]byte, 2)
+		binary.BigEndian.PutUint16(buf, uint16(length))
+		frame = append(frame, byte(126))
+		frame = append(frame, buf...)
+	case uint64(length) <= 0xffffffffffffffff:
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(length))
+		frame = append(frame, byte(127))
+		frame = append(frame, buf...)
+	default:
+		log.Fatal("Data too large")
+		return
+	}
+	frame = append(frame, data...)
+
+	binary.Write(buff, binary.BigEndian, frame)
+	//MyLog().Info(buff.Bytes())
+	return buff.Bytes(), nil
+}
+
+func (req *WebSocketProtocol) Decode(buf []byte) (err error) {
+	return nil
+}
+
+func (req *WebSocketProtocol) SetCmd(cmd uint16) {
+	//req.Header.Cmd = cmd
+}
+
+func (req *WebSocketProtocol) GetCmd() (cmd uint16) {
+	return 0
+	//return req.Header.Cmd
 }
