@@ -3,6 +3,7 @@ package pillx
 import (
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/clientv3"
+	"github.com/bitly/go-simplejson"
 )
 
 type GatewayWebsocket struct {
@@ -22,6 +23,9 @@ func (gateway *GatewayWebsocket) outerConnectHandler(client *Response, protocol 
 		"client_id": client.GetConn().Id,
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 	}).Info("连接到网关")
+
+	//订阅全部频道
+	chat_channel.Subscribe(client)
 }
 
 func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol IProtocol) {
@@ -33,8 +37,25 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 	}).Info("发送给worker")
 
-	req.Content = []byte("test")
-	client.Send(req)
+	jsonObj, jsonErr := simplejson.NewJson(req.Content)
+	if jsonErr != nil {
+		return
+	}
+	msgType, err := jsonObj.Get("type").String()
+
+	if err != nil {
+		panic(err)
+	}
+
+	switch msgType {
+	case "1":
+		jsonObj.Set("type", "2")
+		jsonObj.Set("msg", "online")
+	}
+
+	req.Content, _ = jsonObj.Encode()
+	//广播消息
+	chat_channel.Publish(client, req)
 }
 
 func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IProtocol) {
