@@ -8,10 +8,22 @@ import (
 )
 
 type TomlConfig struct {
-	Etcd          DBConfig
-	Pillx         PillConfig
+	Etcd   DBConfig
+	Pillx  PillConfig
+	Redis0 DBConfig
 	//Elasticsearch DBConfig
 	//DB       database `toml:"database"`
+}
+
+var GlobalTomlConfig TomlConfig
+
+func init() {
+	var err error
+	//C:\\Code\\cubee.lot.ticket\\bin\\etc\\config.toml etc/config.toml
+	GlobalTomlConfig, err = LoadTomlConfig("etc/config.toml")
+	if err != nil {
+		panic(err)
+	}
 }
 
 type DBConfig struct {
