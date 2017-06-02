@@ -1,13 +1,14 @@
 package main
 
 import (
-	"Proto"
 	"fmt"
-	"libraries/toml"
-	"libraries/utils"
 	"net/http"
-	"pillx"
 	"strconv"
+
+	"../../Proto"
+	"../../libraries/toml"
+	"../../libraries/utils"
+	"../../pillx"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/robfig/cron"
