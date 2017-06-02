@@ -62,7 +62,7 @@ func getAdminBlack() {
 }
 
 func main() {
-	tomlConfig, err := toml.LoadTomlConfig("C:\\Code\\pillX\\bin\\etc\\config.toml")
+	tomlConfig, err := toml.LoadTomlConfig("./etc/config.toml")
 	if err != nil {
 		panic(err)
 	}
