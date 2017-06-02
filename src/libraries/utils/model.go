@@ -1,9 +1,7 @@
 package utils
 
 import (
-	"entities"
 	"libraries/toml"
-	"time"
 )
 
 type Model struct {
@@ -24,35 +22,6 @@ func (this *Model) Update(id interface{}, entity interface{}, updateEntity inter
 	data, _ := this.Redis.HGet("$:"+this.TableName, id)
 
 	UnPack([]byte(data), entity)
-
-	switch entity.(type) {
-	case *entities.Plan:
-		if updateEntity.(*entities.Plan).Status != 0 {
-			entity.(*entities.Plan).Status = updateEntity.(*entities.Plan).Status
-		}
-		if updateEntity.(*entities.Plan).ResultStatus != 0 {
-			entity.(*entities.Plan).ResultStatus = updateEntity.(*entities.Plan).ResultStatus
-		}
-		if updateEntity.(*entities.Plan).Prize != 0 {
-			entity.(*entities.Plan).Prize = updateEntity.(*entities.Plan).Prize
-		}
-		if updateEntity.(*entities.Plan).PrizeTax != 0 {
-			entity.(*entities.Plan).PrizeTax = updateEntity.(*entities.Plan).PrizeTax
-		}
-		if updateEntity.(*entities.Plan).SendTicketFinishTime != 0 {
-			entity.(*entities.Plan).SendTicketFinishTime = updateEntity.(*entities.Plan).SendTicketFinishTime
-		}
-		entity.(*entities.Plan).UpdateTime = entities.JsonTime(time.Now())
-	case *entities.Phase:
-		entity.(*entities.Phase).Status = updateEntity.(*entities.Phase).Status
-		entity.(*entities.Phase).UpdateTime = entities.JsonTime(time.Now())
-	case *entities.Order:
-		entity.(*entities.Order).RewardStatus = updateEntity.(*entities.Order).RewardStatus
-		entity.(*entities.Order).Amount = updateEntity.(*entities.Order).Amount
-		entity.(*entities.Order).AfterTax = updateEntity.(*entities.Order).AfterTax
-		entity.(*entities.Order).UpdateTime = entities.JsonTime(time.Now())
-	default:
-	}
 
 	packed, _ := Pack(entity)
 	//更新redis
