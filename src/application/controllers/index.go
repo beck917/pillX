@@ -44,3 +44,12 @@ func IndexHandler(client *pillx.Response, protocol pillx.IProtocol) {
 	//发送到所有网关
 	pillx.SendAllGateWay(pillx.GatewayPools, req)
 }
+
+func LoginHandler(client *pillx.Response, protocol pillx.IProtocol) {
+	req := protocol.(*pillx.GateWayProtocol)
+
+	//解析content
+
+	//发送到所有网关
+	pillx.SendAllGateWay(pillx.GatewayPools, req)
+}

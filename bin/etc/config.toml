@@ -1,5 +1,5 @@
 [etcd]
-Host = "115.29.164.163:2379"
+Host = "120.132.12.251:2379"
 
 [pillx]
 GatewayOuterHost = "127.0.0.1"

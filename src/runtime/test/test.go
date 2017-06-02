@@ -25,6 +25,13 @@ func init() {
 }
 
 func main() {
+	//fmt.Println(utils.Crc16([]byte("login")))
+	fmt.Printf("%x \n", utils.Crc16([]byte("get_matches")))
+	fmt.Printf("%x \n", utils.Crc16([]byte("booking")))
+	fmt.Printf("%x \n", utils.Crc16([]byte("login")))
+	fmt.Printf("%x \n", utils.Crc16([]byte("subscription")))
+	fmt.Printf("%x \n", utils.Crc16([]byte("matchodds")))
+	return
 	clientBlocks := make(map[uint64]map[uint64]bool)
 	blockStruct := make(map[uint64]bool)
 	clientBlocks[1001] = blockStruct

@@ -26,5 +26,7 @@ func main() {
 
 	worker.Init()
 	worker.InnerServer.HandleFunc(opcodes.APP_INDEX, controllers.IndexHandler)
+	worker.InnerServer.HandleFunc(opcodes.APP_LOGIN, controllers.LoginHandler)
+	worker.InnerServer.HandleFunc(opcodes.APP_BOOKING, controllers.LoginHandler)
 	worker.Watch()
 }

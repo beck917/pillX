@@ -83,10 +83,8 @@ func main() {
 	c := cron.New()
 	c.AddFunc("0 */5 * * * *", func() {
 		pillx.MyLog().Info("获取管理员和黑名单id ")
-		getAdminBlack()
 	})
 	c.Start()
-	getAdminBlack()
 
 	gateway.OuterProtocol = &pillx.WebSocketProtocol{}
 	gateway.EtcdClient = etcdClient

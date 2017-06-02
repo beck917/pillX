@@ -7,3 +7,7 @@ bin/gateway.exe
 bin/linux_amd64/pillx-gateway
 bin/linux_amd64/websocket-gateway
 bin/Build main.exe
+bin/pillx-gateway.exe
+bin/pillx-worker.exe
+bin/websocket-gateway.exe
+src/runtime/test/test.exe
