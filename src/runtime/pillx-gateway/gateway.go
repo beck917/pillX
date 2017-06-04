@@ -1,12 +1,12 @@
 package main
 
 import (
-	"Proto"
+	"github.com/beck917/pillX/Proto"
 	"fmt"
-	"libraries/toml"
-	"libraries/utils"
+	"github.com/beck917/pillX/libraries/toml"
+	"github.com/beck917/pillX/libraries/utils"
 	"net/http"
-	"pillx"
+	"github.com/beck917/pillX/pillx"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
@@ -62,7 +62,7 @@ func getAdminBlack() {
 }
 
 func main() {
-	tomlConfig, err := toml.LoadTomlConfig("etc/config.toml")
+	tomlConfig, err := toml.LoadTomlConfig("../etc/config.toml")
 	if err != nil {
 		panic(err)
 	}

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"pillx"
+	"github.com/beck917/pillX/pillx"
 	//"strconv"
 	"time"
 )

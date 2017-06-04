@@ -3,14 +3,14 @@ package main
 import (
 	"application/controllers"
 	"fmt"
-	"libraries/opcodes"
-	"libraries/toml"
-	"libraries/utils"
-	"pillx"
+	"github.com/beck917/pillX/libraries/opcodes"
+	"github.com/beck917/pillX/libraries/toml"
+	"github.com/beck917/pillX/libraries/utils"
+	"github.com/beck917/pillX/pillx"
 )
 
 func main() {
-	tomlConfig, err := toml.LoadTomlConfig("etc/config.toml")
+	tomlConfig, err := toml.LoadTomlConfig("../etc/config.toml")
 	if err != nil {
 		panic(err)
 	}

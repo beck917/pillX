@@ -1,7 +1,7 @@
 package pillx
 
 import (
-	"Proto"
+	"github.com/beck917/pillX/Proto"
 	"fmt"
 	"hash/adler32"
 	"strconv"

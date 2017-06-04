@@ -2,14 +2,11 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"strconv"
 
 	"github.com/beck917/pillX/libraries/toml"
 	"github.com/beck917/pillX/libraries/utils"
 	"github.com/beck917/pillX/pillx"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/robfig/cron"
 )
 
@@ -33,15 +30,12 @@ func getAdminBlack() {
 }
 
 func main() {
-	tomlConfig, err := toml.LoadTomlConfig("./etc/config.toml")
+	tomlConfig, err := toml.LoadTomlConfig("../etc/config.toml")
 	if err != nil {
 		panic(err)
 	}
 
 	etcdClient := utils.EtcdDail(tomlConfig.Etcd)
-
-	http.HandleFunc("/lastmsg", lastMsg)
-	go http.ListenAndServe(":8008", nil)
 
 	gateway := &pillx.GatewayWebsocket{
 		InnerAddr:   fmt.Sprintf("%s:%d", tomlConfig.Pillx.GatewayInnerHost, tomlConfig.Pillx.GatewayInnerPort),

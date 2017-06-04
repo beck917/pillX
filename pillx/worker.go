@@ -3,7 +3,7 @@ package pillx
 import (
 	"fmt"
 
-	"Proto"
+	"github.com/beck917/pillX/Proto"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/clientv3"

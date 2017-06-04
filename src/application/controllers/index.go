@@ -3,8 +3,8 @@ package controllers
 import (
 	"time"
 	//"fmt"
-	"Proto"
-	"pillx"
+	"github.com/beck917/pillX/Proto"
+	"github.com/beck917/pillX/pillx"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"

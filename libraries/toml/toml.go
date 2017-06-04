@@ -18,12 +18,12 @@ type TomlConfig struct {
 var GlobalTomlConfig TomlConfig
 
 func init() {
-	var err error
+	//var err error
 	//C:\\Code\\cubee.lot.ticket\\bin\\etc\\config.toml etc/config.toml
-	GlobalTomlConfig, err = LoadTomlConfig("etc/config.toml")
-	if err != nil {
-		panic(err)
-	}
+	//GlobalTomlConfig, err = LoadTomlConfig("etc/config.toml")
+	//if err != nil {
+		//panic(err)
+	//}
 }
 
 type DBConfig struct {
