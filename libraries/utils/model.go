@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"libraries/toml"
+	"github.com/beck917/pillX/libraries/toml"
 )
 
 type Model struct {

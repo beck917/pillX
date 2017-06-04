@@ -2,7 +2,8 @@ package pillx
 
 import (
 	"Proto"
-	"libraries/utils"
+
+	"github.com/beck917/pillX/libraries/utils"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"

@@ -2,10 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"libraries/toml"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/beck917/pillX/libraries/toml"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/core"

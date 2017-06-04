@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"libraries/toml"
 	"log"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/beck917/pillX/libraries/toml"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/garyburd/redigo/redis"

@@ -2,7 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"libraries/toml"
+
+	"github.com/beck917/pillX/libraries/toml"
 
 	"github.com/garyburd/redigo/redis"
 )

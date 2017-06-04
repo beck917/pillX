@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"../../Proto"
-	"../../libraries/toml"
-	"../../libraries/utils"
-	"../../pillx"
+	"github.com/beck917/pillX/libraries/toml"
+	"github.com/beck917/pillX/libraries/utils"
+	"github.com/beck917/pillX/pillx"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/robfig/cron"
@@ -25,35 +24,6 @@ type Users struct {
 	} `json:"data"`
 	ServerTime int `json:"server_time"`
 	Status     int `json:"status"`
-}
-
-func lastMsg(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-type", "application/x-protobuf")
-
-	//req.ParseForm()
-
-	page := 1
-	if req.PostFormValue("page") != "" {
-		page, _ = strconv.Atoi(req.PostFormValue("page"))
-	}
-	pagecount := 30
-
-	msglist := pillx.RecentMsgChan.GetList()
-
-	messageProto := &Proto.ChatList{}
-	pagei := 0
-	for iter := msglist.Front(); iter != nil; iter = iter.Next() {
-		pagei++
-		if pagei <= pagecount*(page-1) {
-			continue
-		}
-		if pagei > pagecount*(page) {
-			break
-		}
-		messageProto.ChatItem = append(messageProto.ChatItem, iter.Value.(*Proto.ChatData))
-	}
-	v, _ := proto.Marshal(messageProto)
-	w.Write(v)
 }
 
 func getAdminBlack() {
