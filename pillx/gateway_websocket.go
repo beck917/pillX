@@ -173,10 +173,10 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		//"platform": clientMap[client.GetConn().Id].Platform,
 	}).Info("发送给worker ", workerKey)
 
-	jsonObj.Set("content", "online")
-	req.Content, _ = jsonObj.Encode()
+	//jsonObj.Set("content", "online")
+	//req.Content, _ = jsonObj.Encode()
 	//广播消息
-	chat_channel.Publish(client, req)
+	//chat_channel.Publish(client, req)
 }
 
 func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IProtocol) {
