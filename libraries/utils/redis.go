@@ -13,7 +13,7 @@ var GlobalRedis *Redis
 
 func init() {
 	_instanceRedis = make(map[string]*Redis)
-	GlobalRedis = InstanceRedis(toml.GlobalTomlConfig.Redis0)
+	//GlobalRedis = InstanceRedis(toml.GlobalTomlConfig.Redis0)
 }
 
 type Redis struct {
