@@ -6,14 +6,14 @@ import (
 
 //handler接口,ServeRouter类实现了此serve方法
 type Handler interface {
-	serve(*Response, IProtocol)
+	Serve(*Response, IProtocol)
 }
 
 // 这里将HandlerFunc定义为一个函数类型，因此以后当调用a = HandlerFunc(f)之后, 调用a的serve实际上就是调用f的对应方法, 拥有相同参数和相同返回值的函数属于同一种类型。
 type HandlerFunc func(*Response, IProtocol)
 
 // Serve calls f(w, r).
-func (f HandlerFunc) serve(w *Response, r IProtocol) {
+func (f HandlerFunc) Serve(w *Response, r IProtocol) {
 	f(w, r)
 }
 
@@ -36,14 +36,14 @@ func (rounter *ServeRouter) handleFunc(name uint16, handler func(*Response, IPro
 }
 
 // 取出opcode对应的操作方法,然后回调
-func (router *ServeRouter) serve(w *Response, r IProtocol) {
+func (router *ServeRouter) Serve(w *Response, r IProtocol) {
 	router.mu.RLock()
 	defer router.mu.RUnlock()
 
 	var handler Handler
 	if router.opcode_list[r.GetCmd()].handler != nil {
 		handler = router.opcode_list[r.GetCmd()].handler
-		handler.serve(w, r)
+		handler.Serve(w, r)
 	}
 }
 
@@ -64,7 +64,7 @@ func (router *ServeRouter) serveOnfunc(w *Response, r IProtocol, cmd uint16) {
 	if router.opcode_list[cmd].handler != nil {
 		handler = router.opcode_list[cmd].handler
 
-		handler.serve(w, r)
+		handler.Serve(w, r)
 	}
 }
 

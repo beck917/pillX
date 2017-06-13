@@ -3,10 +3,7 @@ package pillx
 import (
 	"github.com/beck917/pillX/Proto"
 
-	"github.com/beck917/pillX/libraries/utils"
-
 	log "github.com/Sirupsen/logrus"
-	"github.com/bitly/go-simplejson"
 	etcd "github.com/coreos/etcd/clientv3"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
@@ -35,12 +32,20 @@ func (gateway *GatewayWebsocket) innerCloseHandler(worker *Response, protocol IP
 
 func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol IProtocol) {
 	//将gateway协议转化为客户端协议
-	wsProtocol := &WebSocketProtocol{}
-	header := &WebSocketHeader{}
-	wsProtocol.Header = header
-
 	req := protocol.(*GateWayProtocol)
-	wsProtocol.Content = req.Content
+
+	//判断协议
+	var outProtocol IProtocol
+	switch gateway.OuterProtocol.(type) {
+	case *WebSocketProtocol:
+		outProtocol = &WebSocketProtocol{}
+		outProtocol.(*WebSocketProtocol).Header = &WebSocketHeader{}
+		outProtocol.(*WebSocketProtocol).Content = req.Content
+	case *PillProtocol:
+		outProtocol = &PillProtocol{}
+		outProtocol.(*PillProtocol).Header = &PillProtocolHeader{}
+		outProtocol.(*PillProtocol).Content = req.Content
+	}
 
 	//发送给client
 	//TODO 这里用了辣鸡锁，后期改成用nil判断
@@ -51,15 +56,48 @@ func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol 
 		//如果没有此key，说明被删除了
 		return
 	}
-	//ret := gateway.returnMsg(req.Header.Cmd, req.Header.Sid, 0x11, "ok", 0)
-	//client.Send(ret)
+
+	client.Send(outProtocol)
+
+	/**
+	    switch cmd {
+	        case GatewayProtocol::CMD_WORKER_CONNECT:
+	        case GatewayProtocol::CMD_SEND_TO_ONE:
+	        case GatewayProtocol::CMD_KICK:
+	        case GatewayProtocol::CMD_SEND_TO_ALL:
+	            // 更新客户端session
+	        case GatewayProtocol::CMD_UPDATE_SESSION:
+	            // 获得客户端在线状态 Gateway::getALLClientInfo()
+	        case GatewayProtocol::CMD_GET_ALL_CLIENT_INFO:
+	            // 判断某个client_id是否在线 Gateway::isOnline($client_id)
+	        case GatewayProtocol::CMD_IS_ONLINE:
+	            // 将client_id与uid绑定
+	        case GatewayProtocol::CMD_BIND_UID:
+	            // client_id与uid解绑 Gateway::unbindUid($client_id, $uid);
+	        case GatewayProtocol::CMD_UNBIND_UID:
+	            // 发送数据给uid Gateway::sendToUid($uid, $msg);
+	        case GatewayProtocol::CMD_SEND_TO_UID:
+	            // 将$client_id加入用户组 Gateway::joinGroup($client_id, $group);
+	        case GatewayProtocol::CMD_JOIN_GROUP:
+	            // 将$client_id从某个用户组中移除 Gateway::leaveGroup($client_id, $group);
+	        case GatewayProtocol::CMD_LEAVE_GROUP:
+	            // 向某个用户组发送消息 Gateway::sendToGroup($group, $msg);
+	        case GatewayProtocol::CMD_SEND_TO_GROUP:
+	            // 获取某用户组成员信息 Gateway::getClientInfoByGroup($group);
+	        case GatewayProtocol::CMD_GET_CLINET_INFO_BY_GROUP:
+	            // 获取用户组成员数 Gateway::getClientCountByGroup($group);
+	        case GatewayProtocol::CMD_GET_CLIENT_COUNT_BY_GROUP:
+	            // 获取与某个uid绑定的所有client_id Gateway::getClientIdByUid($uid);
+	        case GatewayProtocol::CMD_GET_CLIENT_ID_BY_UID:
+		}
+	*/
 
 	//广播消息
-	chat_channel.Publish(client, wsProtocol)
+	//chat_channel.Publish(client, wsProtocol)
 
 	MyLog().WithFields(log.Fields{
 		"client_id": req.Header.ClientId,
-		"content":   string(wsProtocol.Content),
+		"content":   string(req.Content),
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 		//"room_id":   clientMap[req.Header.ClientId].RoomId,
 		//"platform":  clientMap[req.Header.ClientId].Platform,
@@ -78,15 +116,27 @@ func (gateway *GatewayWebsocket) outerConnectHandler(client *Response, protocol 
 }
 
 func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol IProtocol) {
-	req := protocol.(*WebSocketProtocol)
+	//判断协议
+	var outProtocol IProtocol
+	var outContent []byte
+	switch gateway.OuterProtocol.(type) {
+	case *WebSocketProtocol:
+		outProtocol = protocol.(*WebSocketProtocol)
+		outContent = outProtocol.(*WebSocketProtocol).Content
+	case *PillProtocol:
+		outProtocol = protocol.(*PillProtocol)
+		outContent = outProtocol.(*PillProtocol).Content
+	}
+	//req := protocol.(*WebSocketProtocol)
 
 	MyLog().WithFields(log.Fields{
 		"client_id": client.GetConn().Id,
-		"content":   string(req.Content),
+		"content":   string(outContent),
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 	}).Info("发送给worker")
 
-	jsonObj, jsonErr := simplejson.NewJson(req.Content)
+	/**
+	jsonObj, jsonErr := simplejson.NewJson(outProtocol.Content)
 	if jsonErr != nil {
 		//记录错误
 		return
@@ -97,6 +147,7 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 	if err != nil {
 		return
 	}
+	*/
 
 	//将客户端协议转化为gateway协议
 	gatewayProtocol := &GateWayProtocol{}
@@ -104,13 +155,13 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 	gatewayProtocol.Header = header
 
 	header.ClientId = client.GetConn().Id
-	header.Cmd = utils.Crc16([]byte(method))
+	header.Cmd = 0 //utils.Crc16([]byte(method))
 	header.Error = 0
 	header.Mark = PROTO_HEADER_FIRSTCHAR
 	header.Version = GATEWAY_VERSION
 	header.Sid = 0
-	header.Size = uint16(len(req.Content))
-	gatewayProtocol.Content = req.Content
+	header.Size = uint16(len(outContent))
+	gatewayProtocol.Content = outContent
 
 	//发送给一个合适的worker,根据clientid做hash
 	workerPool, workerKey := GetPool(workerPools)

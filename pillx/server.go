@@ -17,7 +17,7 @@ type ServerHandler struct {
 
 func (sh ServerHandler) serve(res *Response, req IProtocol) {
 	router := sh.server.Handler
-	router.serve(res, req)
+	router.Serve(res, req)
 }
 
 var (

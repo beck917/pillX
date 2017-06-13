@@ -38,6 +38,7 @@ func (this *Redis) NewPool() *redis.Pool {
 	redisconfig := this.Config
 
 	redisConnStr := fmt.Sprintf("%s:%d", redisconfig.Host, redisconfig.Port)
+	fmt.Println(redisConnStr)
 	redisPool := redis.NewPool(func() (redis.Conn, error) {
 		redisClient, err := redis.Dial("tcp", redisConnStr)
 
@@ -54,6 +55,7 @@ func (this *Redis) NewPool() *redis.Pool {
 
 func (this *Redis) Dail() redis.Conn {
 	redisconfig := this.Config
+	fmt.Println(fmt.Sprintf("%s:%d", redisconfig.Host, redisconfig.Port))
 	redisClient, err := redis.Dial("tcp", fmt.Sprintf("%s:%d", redisconfig.Host, redisconfig.Port))
 	if err != nil {
 		panic(err)
