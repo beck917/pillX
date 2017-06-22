@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 	"strings"
@@ -25,6 +26,8 @@ func (this *WebSocketProtocol) New() (protocol IProtocol) {
 }
 
 func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
+	//client.conn.mu.Lock()
+	//defer client.conn.mu.Unlock()
 
 	if client.conn.connected_flg != true {
 		client.conn.connected_flg = true
@@ -51,6 +54,13 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 
 	//读取fin
 	header.OpcodeByte, err = buf.ReadByte()
+	if err != nil {
+		//返回error
+		return &ProtocalError{
+			err_type: Protocal_Error_TYPE_DISCONNECT,
+			err:      errors.New("EOF closed"),
+		}
+	}
 	fin := header.OpcodeByte >> 7
 	if fin == 0 {
 
@@ -59,9 +69,11 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	//读取opcode
 	opcode = header.OpcodeByte & 0x0f
 	if opcode == 8 {
-		log.Print("Connection closed")
-		//self.Close()
-		return
+		//返回error
+		return &ProtocalError{
+			err_type: Protocal_Error_TYPE_DISCONNECT,
+			err:      errors.New("Connection closed"),
+		}
 	}
 
 	header.PayloadByte, err = buf.ReadByte()

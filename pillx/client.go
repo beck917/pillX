@@ -48,7 +48,7 @@ func (client *Client) Dail() (p Pool, err error) {
 	// create a new channel based pool with an initial capacity of 5 and maximum
 	// capacity of 30. The factory will create 5 initial connections and put it
 	// into the pool.
-	p, err = NewChannelPool(1000, 5000, factory)
+	p, err = NewChannelPool(10, 50, factory)
 
 	return p, err
 

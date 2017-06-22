@@ -1,12 +1,13 @@
 package pillx
 
 import (
-	"github.com/beck917/pillX/Proto"
 	"fmt"
 	"hash/adler32"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/beck917/pillX/Proto"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/clientv3"

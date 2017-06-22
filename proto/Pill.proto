@@ -1,4 +1,5 @@
 package Proto;
+syntax = "proto2";
 
 message ChatHeader {
 	//optional int32 RoomId   = 1;
@@ -34,6 +35,7 @@ message BlockData{
 
 message WorkerHandShark {
 	optional string IP   = 1;
+	optional string Name = 2;
 }
 
 message MessageData {

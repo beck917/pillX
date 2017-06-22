@@ -2,6 +2,7 @@ package pillx
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/beck917/pillX/Proto"
 
@@ -12,6 +13,7 @@ import (
 )
 
 var (
+	workerMu      sync.RWMutex
 	GatewayPools  map[string]Pool = make(map[string]Pool)
 	WorkerClients                 = make(map[uint64]*WorkerClient)
 )
@@ -40,7 +42,10 @@ func (worker *Worker) innerMessageHandler(response *Response, protocol IProtocol
 }
 
 func (worker *Worker) innerCloseHandler(response *Response, protocol IProtocol) {
-
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	req := protocol.(*GateWayProtocol)
+	delete(WorkerClients, req.Header.ClientId)
 }
 
 func (worker *Worker) innerHandShakeHandler(response *Response, protocol IProtocol) {
@@ -80,6 +85,9 @@ func (worker *Worker) Init() {
 		client := &Client{}
 		client.Addr = name
 		GatewayPools[name], _ = client.Dail()
+
+		//发送握手信息
+
 		log.WithFields(log.Fields{
 			"key":  string(ev.Key),
 			"name": name,

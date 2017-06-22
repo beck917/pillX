@@ -24,6 +24,7 @@ func (gateway *GatewayWebsocket) innerConnectHandler(worker *Response, protocol 
 	//worker_id = atomic.AddUint32(&worker_id, 1)
 	//workers[worker_id] = worker
 	//fmt.Printf("worker %d 连接到此网关\n", worker_id)
+	//存储此worker的id
 }
 
 func (gateway *GatewayWebsocket) innerCloseHandler(worker *Response, protocol IProtocol) {
@@ -58,7 +59,12 @@ func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol 
 	}
 
 	client.Send(outProtocol)
-
+	/**
+	switch cmd {
+	case CMD_WORKER_DISCONNECT:
+		delete(workerPools, worker)
+	}
+	*/
 	/**
 	    switch cmd {
 	        case GatewayProtocol::CMD_WORKER_CONNECT:
@@ -113,6 +119,8 @@ func (gateway *GatewayWebsocket) outerConnectHandler(client *Response, protocol 
 
 	//订阅全部频道
 	chat_channel.Subscribe(client)
+
+	//发送握手
 }
 
 func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol IProtocol) {
@@ -238,7 +246,28 @@ func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IP
 		"info_code": "close1",
 	}).Info("连接断开")
 
-	//清除数据
+	//发送给一个合适的worker,根据clientid做hash
+	workerPool, workerKey := GetPool(workerPools)
+	if workerPool == nil {
+		return
+	}
+	worker, err := workerPool.Get()
+	if err != nil {
+		MyLog().WithError(err).Error("worker池返回错误")
+		return
+	}
+
+	//告知worker
+	handshakeGateway := NewGatewayProtocol()
+	handshakeGateway.Header.Cmd = SYS_CLIENT_DISCONNECT
+	handshakeGateway.Header.ClientId = client.GetConn().Id
+	worker.response.Send(handshakeGateway)
+	MyLog().WithField("proto", handshakeGateway.Header).Info("发送关闭信息给worker ", workerKey)
+
+	//各种清除
+	clientsMu.Lock()
+	defer clientsMu.Unlock()
+	delete(clients, client.conn.Id)
 }
 
 func (gateway *GatewayWebsocket) watchWorkers(events []*etcd.Event) {

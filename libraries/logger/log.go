@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"libraries/constant"
 	"os"
 	"time"
 
@@ -13,7 +12,7 @@ var Mylog *log.Entry
 
 func InitLog(name string) {
 	// Log as JSON instead of the default ASCII formatter.
-	if constant.IN_PRODUCTION == true {
+	if true {
 		log.SetFormatter(&log.JSONFormatter{})
 		// Only log the warning severity or above.
 		log.SetLevel(log.DebugLevel)
@@ -32,6 +31,7 @@ func InitLog(name string) {
 	Mylog = MyLog()
 
 	//每天重置下
+	/**
 	if constant.IN_PRODUCTION == true {
 		c := cron.New()
 		c.AddFunc("1 0 0 * * *", func() {
@@ -40,6 +40,7 @@ func InitLog(name string) {
 		})
 		c.Start()
 	}
+	*/
 }
 
 func getFile(filename string) *os.File {
