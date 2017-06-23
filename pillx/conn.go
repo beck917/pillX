@@ -167,10 +167,12 @@ func (c *Conn) readRequest() (response *Response, err error) {
 				response.Write(err.(*ProtocalError).err_msg)
 				break
 			default:
+				//response.Close()
 				return nil, err
 				break
 			}
 		default:
+			//response.Close()
 			return nil, err
 		}
 
@@ -204,6 +206,17 @@ func (c *Conn) clientServe() {
 
 		if w.protocol.GetCmd() != SYS_ON_CONNECT {
 			go ServerHandler{c.server}.serve(w, w.protocol)
+		}
+	}
+}
+
+func (c *Conn) clientPoolServe(f func()) {
+	for {
+		_, err := c.readRequest()
+
+		if err != nil {
+			f()
+			break
 		}
 	}
 }

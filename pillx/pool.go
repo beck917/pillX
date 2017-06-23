@@ -88,20 +88,23 @@ func (c *channelPool) Get() (*PoolConn, error) {
 
 	// wrap our connections with out custom net.Conn implementation (wrapConn
 	// method) that puts the connection back to the pool if it's closed.
-	select {
-	case conn := <-conns:
-		if conn == nil {
-			return nil, ErrClosed
-		}
+	for {
+		select {
+		case conn := <-conns:
+			if conn == nil {
+				//return nil, ErrClosed
+				continue
+			}
 
-		return c.wrapConn(conn), nil
-	default:
-		conn, err := c.factory()
-		if err != nil {
-			return nil, err
-		}
+			return c.wrapConn(conn), nil
+		default:
+			conn, err := c.factory()
+			if err != nil {
+				return nil, err
+			}
 
-		return c.wrapConn(conn), nil
+			return c.wrapConn(conn), nil
+		}
 	}
 }
 
@@ -162,7 +165,9 @@ type PoolConn struct {
 func (p *PoolConn) Close() error {
 	if p.unusable {
 		if p.response != nil {
-			return p.response.conn.remonte_conn.Close()
+			err := p.response.conn.remonte_conn.Close()
+			p = nil
+			return err
 		}
 		return nil
 	}

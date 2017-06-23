@@ -211,9 +211,9 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 	if err != nil {
 		//连接写入出错，记录错误信息
 		MyLog().WithField("proto", gatewayProtocol.Header).Error(err)
-		pillerror := NewPillProtocol()
-		pillerror.Header.Error = SYS_CONNECT_WORKER_ERROR
-		client.Send(pillerror)
+		//pillerror := NewPillProtocol()
+		//pillerror.Header.Error = SYS_CONNECT_WORKER_ERROR
+		//client.Send(pillerror)
 	}
 
 	//回收连接

@@ -32,6 +32,13 @@ func (client *Client) Dail() (p Pool, err error) {
 		poolconn := &PoolConn{
 			response: response,
 		}
+
+		//监听错误
+		go c.clientPoolServe(func() {
+			poolconn.MarkUnusable()
+			poolconn.Close()
+		})
+
 		return poolconn, err
 	}
 
