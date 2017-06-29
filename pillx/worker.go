@@ -13,9 +13,11 @@ import (
 )
 
 var (
-	workerMu      sync.RWMutex
-	GatewayPools  map[string]Pool = make(map[string]Pool)
-	WorkerClients                 = make(map[uint64]*WorkerClient)
+	workerMu   sync.RWMutex
+	gatewaysMu sync.RWMutex
+	//GatewayPools  map[string]Pool      = make(map[string]Pool)
+	WorkerClients                      = make(map[uint64]*WorkerClient)
+	Gateways      map[string]*Response = make(map[string]*Response)
 )
 
 type Worker struct {
@@ -35,7 +37,10 @@ func NewWorker(name string) *Worker {
 }
 
 func (worker *Worker) innerConnectHandler(response *Response, protocol IProtocol) {
-	//log.Info("连接")
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	Gateways[response.conn.remonte_conn.RemoteAddr().String()] = response
+	MyLog().Info(Gateways)
 }
 
 func (worker *Worker) innerMessageHandler(response *Response, protocol IProtocol) {
@@ -46,6 +51,7 @@ func (worker *Worker) innerCloseHandler(response *Response, protocol IProtocol) 
 	defer workerMu.Unlock()
 	req := protocol.(*GateWayProtocol)
 	delete(WorkerClients, req.Header.ClientId)
+	delete(Gateways, response.conn.remonte_conn.RemoteAddr().String())
 }
 
 func (worker *Worker) innerHandShakeHandler(response *Response, protocol IProtocol) {
@@ -78,21 +84,19 @@ func (worker *Worker) Init() {
 		"addr": worker.InnerAddr,
 	}).Info("inner server started")
 
+	/**
 	//获取gateway地址
 	resp, _ := worker.EtcdClient.Get(context.Background(), worker.WatchName, etcd.WithPrefix())
 	for _, ev := range resp.Kvs {
 		name := string(ev.Value)
-		client := &Client{}
-		client.Addr = name
-		GatewayPools[name], _ = client.Dail()
-
-		//发送握手信息
+		Gateways[name] = NewGatewayClientDial(name)
 
 		log.WithFields(log.Fields{
 			"key":  string(ev.Key),
 			"name": name,
 		}).Info("gateway connected")
 	}
+	*/
 
 	//keepalive
 	resp1, err := worker.EtcdClient.Grant(context.TODO(), 3)
@@ -129,10 +133,10 @@ func (worker *Worker) Watch() {
 func (worker *Worker) watchGateways(events []*etcd.Event) {
 	for _, ev := range events {
 		name := string(ev.Kv.Value)
-		if _, ok := GatewayPools[name]; !ok {
-			client := &Client{}
-			client.Addr = name
-			GatewayPools[name], _ = client.Dail()
+		if _, ok := Gateways[name]; !ok {
+			//client := &Client{}
+			//client.Addr = name
+			//Gateways[name], _ = client.Dail()
 		}
 		fmt.Printf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 	}

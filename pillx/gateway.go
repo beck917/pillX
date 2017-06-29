@@ -26,7 +26,7 @@ type Gateway struct {
 	WatchName     string
 }
 
-var workers map[uint32]*Response
+//var workers map[uint32]*Response
 var worker_id uint32 = 0
 
 var (

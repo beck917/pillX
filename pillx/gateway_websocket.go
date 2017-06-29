@@ -1,9 +1,10 @@
 package pillx
 
 import (
-	"github.com/beck917/pillX/Proto"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/beck917/pillX/Proto"
 	etcd "github.com/coreos/etcd/clientv3"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
@@ -20,15 +21,25 @@ type GatewayWebsocket struct {
 	WatchName     string
 }
 
+var (
+	workersMu sync.RWMutex
+	workers   map[string]*Response = make(map[string]*Response)
+)
+
 func (gateway *GatewayWebsocket) innerConnectHandler(worker *Response, protocol IProtocol) {
 	//worker_id = atomic.AddUint32(&worker_id, 1)
 	//workers[worker_id] = worker
 	//fmt.Printf("worker %d 连接到此网关\n", worker_id)
 	//存储此worker的id
+	workersMu.Lock()
+	defer workersMu.Unlock()
+	workers[worker.conn.remonte_conn.RemoteAddr().String()] = worker
 }
 
 func (gateway *GatewayWebsocket) innerCloseHandler(worker *Response, protocol IProtocol) {
-
+	workersMu.Lock()
+	defer workersMu.Unlock()
+	delete(workers, worker.conn.remonte_conn.RemoteAddr().String())
 }
 
 func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol IProtocol) {
@@ -171,12 +182,14 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 	header.Size = uint16(len(outContent))
 	gatewayProtocol.Content = outContent
 
+	/**
 	//发送给一个合适的worker,根据clientid做hash
-	workerPool, workerKey := GetPool(workerPools)
-	if workerPool == nil {
+	_, worker := GetResponse(workers)
+	if worker == nil {
+		MyLog().Error("no available worker")
 		return
 	}
-	/**
+
 	if workerPool == nil {
 		log.Error("worker池未初始化")
 		errorMsg := &PillProtocolHeader{
@@ -187,11 +200,7 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		}
 	}
 	*/
-	worker, err := workerPool.Get()
-	if err != nil {
-		MyLog().WithError(err).Error("worker池返回错误")
-		return
-	}
+
 	//发送握手
 	if !workerHandshakeFlgs[header.ClientId] {
 		handshakeProto := &Proto.WorkerHandShark{}
@@ -201,13 +210,13 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		handshakeGateway.Header.Size = uint16(len(handshakeGateway.Content))
 		handshakeGateway.Header.Cmd = SYS_ON_HANDSHAKE
 		handshakeGateway.Header.ClientId = header.ClientId
-		MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", workerKey)
-		worker.response.Send(handshakeGateway)
+		//MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", workerKey)
+		responseSend(workers, handshakeGateway)
 
 		workerHandshakeFlgs[header.ClientId] = true
 	}
 
-	_, err = worker.response.Send(gatewayProtocol)
+	_, err := responseSend(workers, gatewayProtocol)
 	if err != nil {
 		//连接写入出错，记录错误信息
 		MyLog().WithField("proto", gatewayProtocol.Header).Error(err)
@@ -216,21 +225,14 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		//client.Send(pillerror)
 	}
 
-	//回收连接
-	worker.Close()
 	//fmt.Printf("%x", gatewayProtocol.Header)
-	//fmt.Println(gatewayProtocol.Header)
-	//fmt.Printf("%x", req.Header)
-	//fmt.Printf("%s", req.Content)
 
 	MyLog().WithFields(log.Fields{
 		"client_id": client.GetConn().Id,
 		"content":   string(gatewayProtocol.Content),
 		"header":    gatewayProtocol.Header,
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
-		//"room_id":   clientMap[client.GetConn().Id].RoomId,
-		//"platform": clientMap[client.GetConn().Id].Platform,
-	}).Info("发送给worker ", workerKey)
+	}).Info("发送给worker")
 
 	//jsonObj.Set("content", "online")
 	//req.Content, _ = jsonObj.Encode()
@@ -246,56 +248,21 @@ func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IP
 		"info_code": "close1",
 	}).Info("连接断开")
 
-	//发送给一个合适的worker,根据clientid做hash
-	workerPool, workerKey := GetPool(workerPools)
-	if workerPool == nil {
-		return
-	}
-	worker, err := workerPool.Get()
-	if err != nil {
-		MyLog().WithError(err).Error("worker池返回错误")
-		return
-	}
-
 	//告知worker
-	handshakeGateway := NewGatewayProtocol()
-	handshakeGateway.Header.Cmd = SYS_CLIENT_DISCONNECT
-	handshakeGateway.Header.ClientId = client.GetConn().Id
-	worker.response.Send(handshakeGateway)
-	MyLog().WithField("proto", handshakeGateway.Header).Info("发送关闭信息给worker ", workerKey)
+	closeGateway := NewGatewayProtocol()
+	closeGateway.Header.Cmd = SYS_CLIENT_DISCONNECT
+	closeGateway.Header.ClientId = client.GetConn().Id
+	_, err := responseSend(workers, closeGateway)
+	if err != nil {
+		//连接写入出错，记录错误信息
+		MyLog().WithField("proto", closeGateway.Header).Error(err)
+	}
+	MyLog().WithField("proto", closeGateway.Header).Info("发送关闭信息给worker")
 
 	//各种清除
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 	delete(clients, client.conn.Id)
-}
-
-func (gateway *GatewayWebsocket) watchWorkers(events []*etcd.Event) {
-	for _, ev := range events {
-		name := string(ev.Kv.Key)
-		value := string(ev.Kv.Value)
-		MyLog().WithFields(log.Fields{
-			"type":  ev.Type,
-			"key":   string(ev.Kv.Key),
-			"value": string(ev.Kv.Value),
-		}).Info("workers信息")
-		//MyLog().Info(ev.Type)
-		if ev.Type == 1 {
-			//清除此节点
-			//workerPools[name] = nil
-			delete(workerPools, name)
-			MyLog().Info("worker deleted ", name)
-		} else {
-			if _, ok := workerPools[name]; !ok {
-				client := &Client{}
-				client.Addr = value
-				workerPools[name], _ = client.Dail()
-				MyLog().Info("worker connected ", name)
-			}
-		}
-		//fmt.Printf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
-	}
-	return
 }
 
 func (gateway *GatewayWebsocket) Init() {
@@ -335,4 +302,36 @@ func (gateway *GatewayWebsocket) Init() {
 		}
 	}
 	MyLog().Info("etcd watch started2")
+}
+
+func (gateway *GatewayWebsocket) watchWorkers(events []*etcd.Event) {
+	for _, ev := range events {
+		name := string(ev.Kv.Key)
+		value := string(ev.Kv.Value)
+		MyLog().WithFields(log.Fields{
+			"type":  ev.Type,
+			"key":   string(ev.Kv.Key),
+			"value": string(ev.Kv.Value),
+		}).Info("workers信息")
+		//MyLog().Info(ev.Type)
+		if ev.Type == 1 {
+			//清除此节点
+			//workerPools[name] = nil
+			//delete(workers, value)
+			MyLog().Info("worker deleted ", name, value)
+		} else {
+			if _, ok := workers[value]; !ok {
+				workersMu.Lock()
+				defer workersMu.Unlock()
+				client := NewGatewayClient(value)
+				workers[value] = client.Dial()
+				client.HandleFunc(SYS_ON_CONNECT, gateway.innerConnectHandler)
+				client.HandleFunc(SYS_ON_MESSAGE, gateway.innerMessageHandler)
+				client.HandleFunc(SYS_ON_CLOSE, gateway.innerCloseHandler)
+				MyLog().Info("worker connected ", name, value)
+			}
+		}
+		//fmt.Printf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+	}
+	return
 }

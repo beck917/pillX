@@ -1,6 +1,7 @@
 package pillx
 
 import (
+	"errors"
 	"sync/atomic"
 	//"fmt"
 	"bufio"
@@ -88,7 +89,7 @@ func (response *Response) SendContent(content []byte) {
 
 func (response *Response) Send(msg interface{}) (n int, err error) {
 	if response == nil {
-		return
+		return 0, errors.New("no res")
 	}
 
 	buf, _ := response.protocol.Encode(msg)
@@ -114,7 +115,9 @@ func (response *Response) Close() {
 func (response *Response) callbackServe(cmd uint16) {
 	//response.protocol.SetCmd(cmd)
 	//response.conn.server.Handler.serve(response, response.protocol)
-
+	if response.conn.server.Handler == nil {
+		return
+	}
 	response.conn.server.Handler.(*ServeRouter).serveOnfunc(response, response.protocol, cmd)
 }
 
@@ -167,12 +170,12 @@ func (c *Conn) readRequest() (response *Response, err error) {
 				response.Write(err.(*ProtocalError).err_msg)
 				break
 			default:
-				//response.Close()
+				response.Close()
 				return nil, err
 				break
 			}
 		default:
-			//response.Close()
+			response.Close()
 			return nil, err
 		}
 
@@ -201,6 +204,7 @@ func (c *Conn) clientServe() {
 		w, err := c.readRequest()
 
 		if err != nil {
+			MyLog().WithError(err).Error("cs数据包错误")
 			break
 		}
 
@@ -215,6 +219,7 @@ func (c *Conn) clientPoolServe(f func()) {
 		_, err := c.readRequest()
 
 		if err != nil {
+			MyLog().WithError(err).Error("cps数据包错误")
 			f()
 			break
 		}

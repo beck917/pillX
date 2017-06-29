@@ -35,6 +35,7 @@ func (client *Client) Dail() (p Pool, err error) {
 
 		//监听错误
 		go c.clientPoolServe(func() {
+			log.Info("关闭连接")
 			poolconn.MarkUnusable()
 			poolconn.Close()
 		})

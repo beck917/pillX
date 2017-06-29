@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -93,6 +95,7 @@ func (c *channelPool) Get() (*PoolConn, error) {
 		case conn := <-conns:
 			if conn == nil {
 				//return nil, ErrClosed
+				log.Info("连接错误")
 				continue
 			}
 
@@ -165,10 +168,9 @@ type PoolConn struct {
 func (p *PoolConn) Close() error {
 	if p.unusable {
 		if p.response != nil {
-			err := p.response.conn.remonte_conn.Close()
-			p = nil
-			return err
+			p.response.Close()
 		}
+		p = nil
 		return nil
 	}
 	return p.c.put(p)
