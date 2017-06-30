@@ -73,6 +73,7 @@ func (worker *Worker) Init() {
 	worker.InnerServer = &Server{
 		Addr:     worker.InnerAddr,
 		Protocol: &GateWayProtocol{},
+		Handler:  NewServeRouter(),
 	}
 	worker.InnerServer.HandleFunc(SYS_ON_CONNECT, worker.innerConnectHandler)
 	worker.InnerServer.HandleFunc(SYS_ON_MESSAGE, worker.innerMessageHandler)

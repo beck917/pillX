@@ -62,7 +62,7 @@ func SendAllGateWayPool(gatewayPools map[string]Pool, msg interface{}) {
 func NewGatewayClient(addr string) *Server {
 	client := &Server{
 		Addr:     addr,
-		Handler:  nil,
+		Handler:  NewServeRouter(),
 		Protocol: &GateWayProtocol{},
 	}
 	return client

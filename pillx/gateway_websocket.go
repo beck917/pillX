@@ -324,10 +324,11 @@ func (gateway *GatewayWebsocket) watchWorkers(events []*etcd.Event) {
 				workersMu.Lock()
 				defer workersMu.Unlock()
 				client := NewGatewayClient(value)
-				workers[value] = client.Dial()
 				client.HandleFunc(SYS_ON_CONNECT, gateway.innerConnectHandler)
 				client.HandleFunc(SYS_ON_MESSAGE, gateway.innerMessageHandler)
 				client.HandleFunc(SYS_ON_CLOSE, gateway.innerCloseHandler)
+				workers[value] = client.Dial()
+
 				MyLog().Info("worker connected ", name, value)
 			}
 		}
