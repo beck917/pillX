@@ -40,7 +40,7 @@ func (worker *Worker) innerConnectHandler(response *Response, protocol IProtocol
 	workerMu.Lock()
 	defer workerMu.Unlock()
 	Gateways[response.conn.remonte_conn.RemoteAddr().String()] = response
-	MyLog().Info(Gateways)
+	MyLog().Info(response.conn.remonte_conn.RemoteAddr().String())
 }
 
 func (worker *Worker) innerMessageHandler(response *Response, protocol IProtocol) {
@@ -117,6 +117,9 @@ func (worker *Worker) Init() {
 	}
 	//注册worker
 	//worker.EtcdClient.Put(context.Background(), worker.WorkerName, worker.InnerAddr)
+
+	//监听worker重启
+	go worker.InnerServer.handleSignals()
 	return
 }
 

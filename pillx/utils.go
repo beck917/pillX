@@ -1,6 +1,13 @@
 package pillx
 
-import log "github.com/Sirupsen/logrus"
+import (
+	"strconv"
+
+	log "github.com/Sirupsen/logrus"
+	"stathat.com/c/consistent"
+)
+
+var globalConsistent *consistent.Consistent = consistent.New()
 
 func GetPool(workerPools map[string]Pool) (wp Pool, key string) {
 	//随机取出一个workerpool
@@ -11,9 +18,13 @@ func GetPool(workerPools map[string]Pool) (wp Pool, key string) {
 	return
 }
 
-func responseSend(resMap map[string]*Response, msg interface{}) (n int, err error) {
-	//发送中发现连接不可用,则剔除
+func responseSend(clientId uint64, resMap map[string]*Response, msg interface{}) (n int, err error) {
+	//TODO 发送中发现连接不可用,则剔除
 
+	_, res := GetResponse(clientId, resMap)
+	n, err = res.Send(msg)
+	return
+	/**
 	//循环次数
 	for i := 0; i < 5; i++ {
 		MyLog().Info("teee")
@@ -28,15 +39,22 @@ func responseSend(resMap map[string]*Response, msg interface{}) (n int, err erro
 		return n, err
 	}
 	return 0, err
+	*/
 }
 
-func GetResponse(resMap map[string]*Response) (ip string, res *Response) {
+func GetResponse(clientId uint64, resMap map[string]*Response) (ip string, res *Response) {
+	//取得一个稳定的节点
+	clientIdStr := strconv.Itoa(int(clientId))
+	serverName, _ := globalConsistent.Get(clientIdStr)
+	return serverName, resMap[serverName]
+	/**
 	//实现一个稳定的LoadBalance算法
 	//权重随机
 	for ip, res := range resMap {
 		return ip, res
 	}
 	return
+	*/
 }
 
 func SendAllGateWay(resMap map[string]*Response, msg interface{}) {

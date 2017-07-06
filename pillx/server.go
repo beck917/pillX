@@ -6,7 +6,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -24,6 +27,7 @@ var (
 	bufioReaderPool   sync.Pool
 	bufioWriter2kPool sync.Pool
 	bufioWriter4kPool sync.Pool
+	DefaultHammerTime time.Duration = 60 * time.Second
 )
 
 func bufioWriterPool(size int) *sync.Pool {
@@ -199,6 +203,52 @@ func (srv *Server) Serve(l net.Listener) error {
 		//c.setState(c.rc, StateNew) // before Serve can return
 		go c.serve()
 	}
+}
+
+/*
+handleSignals listens for os Signals and calls any hooked in function that the
+user had registered with the signal.
+*/
+func (srv *Server) handleSignals() {
+	var sig os.Signal
+	hookableSignals := []os.Signal{
+		syscall.SIGHUP,
+		//syscall.SIGUSR1,
+		//syscall.SIGUSR2,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		//syscall.SIGTSTP,
+		syscall.SIGQUIT,
+	}
+	sigChan := make(chan os.Signal)
+
+	signal.Notify(
+		sigChan,
+		hookableSignals...,
+	)
+
+	pid := syscall.Getpid()
+	for {
+		sig = <-sigChan
+		switch sig {
+		case syscall.SIGHUP:
+			log.Println(pid, "Received SIGHUP. forking.")
+		case syscall.SIGINT:
+			log.Println(pid, "Received SIGINT.")
+			srv.shutdown()
+		case syscall.SIGTERM:
+			log.Println(pid, "Received SIGTERM.")
+			srv.shutdown()
+		default:
+			log.Printf("Received %v: nothing i care about...\n", sig)
+		}
+		break
+	}
+}
+
+func (srv *Server) shutdown() {
+	time.Sleep(DefaultHammerTime)
+	return
 }
 
 func (s *Server) logf(format string, args ...interface{}) {

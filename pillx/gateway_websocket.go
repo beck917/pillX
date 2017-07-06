@@ -1,6 +1,7 @@
 package pillx
 
 import (
+	"strconv"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -22,9 +23,26 @@ type GatewayWebsocket struct {
 }
 
 var (
-	workersMu sync.RWMutex
-	workers   map[string]*Response = make(map[string]*Response)
+	workersMu     sync.RWMutex
+	workers       map[string]*Response = make(map[string]*Response)
+	clientSyncMap                      = struct {
+		sync.RWMutex
+		data map[uint64]*ClientDataStruct
+	}{data: make(map[uint64]*ClientDataStruct)}
+	workerHandshakeMap = struct {
+		sync.RWMutex
+		data map[uint64]string
+	}{data: make(map[uint64]string)}
 )
+
+type ClientDataStruct struct {
+	Uid      int
+	RoomId   int
+	Channel  *Channel
+	Platform int
+	Ip       string
+	Uname    string
+}
 
 func (gateway *GatewayWebsocket) innerConnectHandler(worker *Response, protocol IProtocol) {
 	//worker_id = atomic.AddUint32(&worker_id, 1)
@@ -34,12 +52,20 @@ func (gateway *GatewayWebsocket) innerConnectHandler(worker *Response, protocol 
 	workersMu.Lock()
 	defer workersMu.Unlock()
 	workers[worker.conn.remonte_conn.RemoteAddr().String()] = worker
+	MyLog().Info("connect", worker.conn.remonte_conn.RemoteAddr().String())
 }
 
 func (gateway *GatewayWebsocket) innerCloseHandler(worker *Response, protocol IProtocol) {
 	workersMu.Lock()
 	defer workersMu.Unlock()
-	delete(workers, worker.conn.remonte_conn.RemoteAddr().String())
+	remoteAddr := worker.conn.remonte_conn.RemoteAddr().String()
+	//删除一致性哈希
+	globalConsistent.Remove(remoteAddr)
+	delete(workers, remoteAddr)
+
+	//重新进行握手
+	gateway.reHashConnection()
+	MyLog().Info("disconnect", worker.conn.remonte_conn.RemoteAddr().String())
 }
 
 func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol IProtocol) {
@@ -69,13 +95,20 @@ func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol 
 		return
 	}
 
-	client.Send(outProtocol)
-	/**
-	switch cmd {
-	case CMD_WORKER_DISCONNECT:
-		delete(workerPools, worker)
+	switch req.Header.Cmd {
+	case SYS_WORKER_DISCONNECT:
+		//delete(workerPools, worker)
+	case SYS_BIND_UID:
+		//将client_id与uid绑定
+		//clientMap[req.Header.ClientId].
+		clientSyncMap.Lock()
+		clientSyncMap.data[req.Header.ClientId].Uid, _ = strconv.Atoi(string(req.Content))
+		clientSyncMap.Unlock()
+	case SYS_SEND_TO_ONE:
+		client.Send(outProtocol)
+	default:
+		client.Send(outProtocol)
 	}
-	*/
 	/**
 	    switch cmd {
 	        case GatewayProtocol::CMD_WORKER_CONNECT:
@@ -114,7 +147,8 @@ func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol 
 
 	MyLog().WithFields(log.Fields{
 		"client_id": req.Header.ClientId,
-		"content":   string(req.Content),
+		"cmd":       req.Header.Cmd,
+		//"content":   string(req.Content),
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 		//"room_id":   clientMap[req.Header.ClientId].RoomId,
 		//"platform":  clientMap[req.Header.ClientId].Platform,
@@ -200,23 +234,28 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		}
 	}
 	*/
+	//初始化clientmap
+	clientSyncMap.Lock()
+	clientSyncMap.data[header.ClientId] = &ClientDataStruct{}
+	clientSyncMap.Unlock()
 
 	//发送握手
-	if !workerHandshakeFlgs[header.ClientId] {
+	serverName, res := GetResponse(header.ClientId, workers)
+	if workerHandshakeMap.data[header.ClientId] != serverName {
 		handshakeProto := &Proto.WorkerHandShark{}
 		handshakeProto.IP = proto.String(client.conn.remote_addr)
+		handshakeProto.Uid = proto.Int32(int32(0))
 		handshakeGateway := NewGatewayProtocol()
 		handshakeGateway.Content, _ = proto.Marshal(handshakeProto)
 		handshakeGateway.Header.Size = uint16(len(handshakeGateway.Content))
 		handshakeGateway.Header.Cmd = SYS_ON_HANDSHAKE
 		handshakeGateway.Header.ClientId = header.ClientId
-		//MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", workerKey)
-		responseSend(workers, handshakeGateway)
-
-		workerHandshakeFlgs[header.ClientId] = true
+		MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", serverName)
+		res.Send(handshakeGateway)
+		workerHandshakeMap.data[header.ClientId] = serverName
 	}
 
-	_, err := responseSend(workers, gatewayProtocol)
+	_, err := responseSend(header.ClientId, workers, gatewayProtocol)
 	if err != nil {
 		//连接写入出错，记录错误信息
 		MyLog().WithField("proto", gatewayProtocol.Header).Error(err)
@@ -252,7 +291,7 @@ func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IP
 	closeGateway := NewGatewayProtocol()
 	closeGateway.Header.Cmd = SYS_CLIENT_DISCONNECT
 	closeGateway.Header.ClientId = client.GetConn().Id
-	_, err := responseSend(workers, closeGateway)
+	_, err := responseSend(closeGateway.Header.ClientId, workers, closeGateway)
 	if err != nil {
 		//连接写入出错，记录错误信息
 		MyLog().WithField("proto", closeGateway.Header).Error(err)
@@ -263,6 +302,46 @@ func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IP
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 	delete(clients, client.conn.Id)
+}
+
+func (gateway *GatewayWebsocket) reHashConnection() {
+	//遍历客户端信息
+	for id, client := range clients {
+		clientIdStr := strconv.Itoa(int(id))
+		serverName, _ := globalConsistent.Get(clientIdStr)
+
+		if serverName == "" {
+			break
+		}
+
+		MyLog().Info("servet name ", serverName)
+		MyLog().Info("whm ", workerHandshakeMap.data[id])
+		MyLog().Info("clientSyncMap ", clientSyncMap.data[id].Uid)
+
+		//判断节点是否发生了变化,如果变化了,则重新发送握手信息
+		if workerHandshakeMap.data[id] != "" && workerHandshakeMap.data[id] != serverName {
+			if clientSyncMap.data[id] != nil && clientSyncMap.data[id].Uid != 0 {
+				gateway.sendHandShakeMsg(client, clientSyncMap.data[id].Uid)
+			}
+		}
+	}
+}
+
+func (gateway *GatewayWebsocket) sendHandShakeMsg(client *Response, uid int) {
+	handshakeProto := &Proto.WorkerHandShark{}
+	handshakeProto.IP = proto.String(client.conn.remote_addr)
+	handshakeProto.Uid = proto.Int32(int32(uid))
+	handshakeGateway := NewGatewayProtocol()
+	handshakeGateway.Content, _ = proto.Marshal(handshakeProto)
+	handshakeGateway.Header.Size = uint16(len(handshakeGateway.Content))
+	handshakeGateway.Header.Cmd = SYS_ON_HANDSHAKE
+	handshakeGateway.Header.ClientId = client.conn.Id
+
+	serverName, res := GetResponse(handshakeGateway.Header.ClientId, workers)
+	MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", serverName)
+	res.Send(handshakeGateway)
+
+	workerHandshakeMap.data[handshakeGateway.Header.ClientId] = serverName
 }
 
 func (gateway *GatewayWebsocket) Init() {
@@ -328,6 +407,10 @@ func (gateway *GatewayWebsocket) watchWorkers(events []*etcd.Event) {
 				client.HandleFunc(SYS_ON_MESSAGE, gateway.innerMessageHandler)
 				client.HandleFunc(SYS_ON_CLOSE, gateway.innerCloseHandler)
 				workers[value] = client.Dial()
+
+				//加入一致性哈希
+				globalConsistent.Add(value)
+				gateway.reHashConnection()
 
 				MyLog().Info("worker connected ", name, value)
 			}

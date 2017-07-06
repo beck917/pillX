@@ -194,7 +194,7 @@ func (c *Conn) serve() {
 		}
 
 		if w.protocol.GetCmd() != SYS_ON_CONNECT {
-			ServerHandler{c.server}.serve(w, w.protocol)
+			go ServerHandler{c.server}.serve(w, w.protocol)
 		}
 	}
 }
