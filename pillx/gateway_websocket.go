@@ -31,8 +31,8 @@ var (
 	}{data: make(map[uint64]*ClientDataStruct)}
 	workerHandshakeMap = struct {
 		sync.RWMutex
-		data map[uint64]string
-	}{data: make(map[uint64]string)}
+		data map[uint64]*Response
+	}{data: make(map[uint64]*Response)}
 )
 
 type ClientDataStruct struct {
@@ -241,7 +241,7 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 
 	//发送握手
 	serverName, res := GetResponse(header.ClientId, workers)
-	if workerHandshakeMap.data[header.ClientId] != serverName {
+	if workerHandshakeMap.data[header.ClientId] != res {
 		handshakeProto := &Proto.WorkerHandShark{}
 		handshakeProto.IP = proto.String(client.conn.remote_addr)
 		handshakeProto.Uid = proto.Int32(int32(0))
@@ -252,7 +252,7 @@ func (gateway *GatewayWebsocket) outerMessageHandler(client *Response, protocol 
 		handshakeGateway.Header.ClientId = header.ClientId
 		MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", serverName)
 		res.Send(handshakeGateway)
-		workerHandshakeMap.data[header.ClientId] = serverName
+		workerHandshakeMap.data[header.ClientId] = res
 	}
 
 	_, err := responseSend(header.ClientId, workers, gatewayProtocol)
@@ -306,22 +306,29 @@ func (gateway *GatewayWebsocket) outerCloseHandler(client *Response, protocol IP
 
 func (gateway *GatewayWebsocket) reHashConnection() {
 	//遍历客户端信息
-	for id, client := range clients {
-		clientIdStr := strconv.Itoa(int(id))
-		serverName, _ := globalConsistent.Get(clientIdStr)
+	for clientId, client := range clients {
+		//clientIdStr := strconv.Itoa(int(id))
+		//serverName, _ := globalConsistent.Get(clientIdStr)
+		serverName, res := GetResponse(clientId, workers)
 
 		if serverName == "" {
 			break
 		}
 
 		MyLog().Info("servet name ", serverName)
-		MyLog().Info("whm ", workerHandshakeMap.data[id])
-		MyLog().Info("clientSyncMap ", clientSyncMap.data[id].Uid)
+		MyLog().Info("whm ", workerHandshakeMap.data[clientId])
+		MyLog().Info("clientSyncMap ", clientSyncMap.data[clientId])
 
 		//判断节点是否发生了变化,如果变化了,则重新发送握手信息
-		if workerHandshakeMap.data[id] != "" && workerHandshakeMap.data[id] != serverName {
-			if clientSyncMap.data[id] != nil && clientSyncMap.data[id].Uid != 0 {
-				gateway.sendHandShakeMsg(client, clientSyncMap.data[id].Uid)
+		if workerHandshakeMap.data[clientId] != nil && workerHandshakeMap.data[clientId] != res {
+			if clientSyncMap.data[clientId] != nil && clientSyncMap.data[clientId].Uid != 0 {
+				//发送一份断开信息到上一个worker,因为老的连接已经不需要这个用户的信息
+				closeGateway := NewGatewayProtocol()
+				closeGateway.Header.Cmd = SYS_CLIENT_DISCONNECT_WORKER
+				closeGateway.Header.ClientId = clientId
+				workerHandshakeMap.data[clientId].Send(closeGateway)
+
+				gateway.sendHandShakeMsg(client, clientSyncMap.data[clientId].Uid)
 			}
 		}
 	}
@@ -341,7 +348,7 @@ func (gateway *GatewayWebsocket) sendHandShakeMsg(client *Response, uid int) {
 	MyLog().WithField("proto", handshakeGateway.Header).Info("发送握手信息给worker ", serverName)
 	res.Send(handshakeGateway)
 
-	workerHandshakeMap.data[handshakeGateway.Header.ClientId] = serverName
+	workerHandshakeMap.data[handshakeGateway.Header.ClientId] = res
 }
 
 func (gateway *GatewayWebsocket) Init() {
