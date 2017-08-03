@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
 	"strings"
 )
 
@@ -77,6 +78,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	}
 
 	header.PayloadByte, err = buf.ReadByte()
+	log.Println(header.PayloadByte)
 
 	if err != nil {
 		return &ProtocalError{
@@ -116,6 +118,14 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	if mask == 1 {
 		maskKeyBytes = make([]byte, 4)
 		buf.Read(maskKeyBytes)
+	}
+	log.Println(length)
+
+	if length > math.MaxInt16 {
+		return &ProtocalError{
+			err_type: Protocal_Error_TYPE_DISCONNECT,
+			err:      err,
+		}
 	}
 
 	contentBuf = make([]byte, length)
