@@ -14,7 +14,7 @@ a simple &amp; powerful network Library written in Go
   gateway协议 gateway和worker通信所用的协议 <br />
   pill协议 目前pillX网络开发套件,官方推荐使用的二进制协议,特点是间接高效<br />
   text协议 文本协议,主要用于测试<br />
-  websocket协议 待开发,用于html5页面通信的协议
+  websocket协议 用于html5页面通信的协议
   
 # 使用实例
   pillx参考了go官方net库中的http的使用方式
