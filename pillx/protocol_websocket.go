@@ -62,11 +62,12 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 			err:      errors.New("EOF closed"),
 		}
 	}
+
 	fin := header.OpcodeByte >> 7
 	if fin == 0 {
-
+		log.Println("fin", fin)
 	}
-	log.Println(header.OpcodeByte)
+	log.Println("OpcodeByte", header.OpcodeByte)
 	//读取opcode
 	opcode = header.OpcodeByte & 0x0f
 	if opcode == 8 {
@@ -78,7 +79,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	}
 
 	header.PayloadByte, err = buf.ReadByte()
-	log.Println(header.PayloadByte)
+	log.Println("PayloadByte", header.PayloadByte)
 
 	if err != nil {
 		return &ProtocalError{
@@ -106,7 +107,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 	case payload == 126:
 		lengthBytes = make([]byte, 2)
 		buf.Read(lengthBytes)
-		binary.Read(bytes.NewReader(lengthBytes), binary.BigEndian, &l)
+		err = binary.Read(bytes.NewReader(lengthBytes), binary.BigEndian, &l)
 		length = uint64(l)
 
 	case payload == 127:
@@ -119,7 +120,7 @@ func (websocket *WebSocketProtocol) Analyze(client *Response) (err error) {
 		maskKeyBytes = make([]byte, 4)
 		buf.Read(maskKeyBytes)
 	}
-	log.Println(length)
+	log.Println("length", length)
 
 	if length > math.MaxInt16 {
 		return &ProtocalError{
