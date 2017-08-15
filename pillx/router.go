@@ -1,6 +1,7 @@
 package pillx
 
 import (
+	"log"
 	"sync"
 )
 
@@ -52,13 +53,11 @@ func (router *ServeRouter) serveOnfunc(w *Response, r IProtocol, cmd uint16) {
 	router.mu.RLock()
 	defer router.mu.RUnlock()
 	//TODO 正式上线打开
-	/**
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}()
-	*/
 
 	var handler Handler
 	if router.opcode_list[cmd].handler != nil {

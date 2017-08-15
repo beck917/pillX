@@ -148,7 +148,7 @@ func (gateway *GatewayWebsocket) innerMessageHandler(worker *Response, protocol 
 	MyLog().WithFields(log.Fields{
 		"client_id": req.Header.ClientId,
 		"cmd":       req.Header.Cmd,
-		//"content":   string(req.Content),
+		"content":   string(req.Content),
 		"client_ip": client.GetConn().remonte_conn.RemoteAddr(),
 		//"room_id":   clientMap[req.Header.ClientId].RoomId,
 		//"platform":  clientMap[req.Header.ClientId].Platform,
